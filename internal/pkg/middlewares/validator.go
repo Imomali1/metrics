@@ -1,28 +1,81 @@
 package middlewares
 
 import (
+	"errors"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
-func ValidateUpdateURL(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusNotFound)
+const (
+	contentTypeHeader = "Content-Type"
+	textPlain         = "text/plain"
+	gauge             = "gauge"
+	counter           = "counter"
+)
+
+func ValidateUpdateURL() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if ctx.Request.Method != http.MethodPost {
+			err := fmt.Errorf("Invalid http method! Expected %s, Got %s. ", http.MethodPost, ctx.Request.Method)
+			ctx.AbortWithStatus(http.StatusNotFound)
+			log.Println(err)
 			return
 		}
-		contentType := r.Header.Get("Content-Type")
-		if contentType != "text/plain" {
-			w.WriteHeader(http.StatusBadRequest)
+
+		if ctx.GetHeader(contentTypeHeader) != textPlain {
+			err := fmt.Errorf("Invalid content type! Expected %s, Got %s. ", textPlain, ctx.GetHeader(contentTypeHeader))
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			log.Println(err)
 			return
 		}
-		path := r.URL.RequestURI()
+
+		path := ctx.Request.URL.RequestURI()
 		path = strings.Trim(path, "/")
 		params := strings.Split(path, "/")
-		if len(params) != 4 {
-			w.WriteHeader(http.StatusNotFound)
+
+		if len(params) == 2 && params[1] != gauge && params[1] != counter {
+			err := fmt.Errorf("Invalid metric type and url path!\n"+
+				"Expected url params length = %d, Got %d. ", 4, len(params))
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			log.Println(err)
 			return
 		}
-		next.ServeHTTP(w, r)
-	})
+
+		if len(params) != 4 {
+			err := fmt.Errorf("Invalid url path! Expected url params length = %d, Got %d. ", 4, len(params))
+			ctx.AbortWithStatus(http.StatusNotFound)
+			log.Println(err)
+			return
+		}
+
+		switch params[1] {
+		case gauge:
+			_, err := strconv.ParseFloat(params[3], 64)
+			if err != nil {
+				err = fmt.Errorf("Invalid gauge value = %v ! Expected float64. ", params[3])
+				ctx.AbortWithStatus(http.StatusBadRequest)
+				log.Println(err)
+				return
+			}
+		case counter:
+			_, err := strconv.ParseInt(params[3], 10, 64)
+			if err != nil {
+				err = fmt.Errorf("Invalid counter value = %v ! Expected int64. ", params[3])
+				ctx.AbortWithStatus(http.StatusBadRequest)
+				log.Println(err)
+				return
+			}
+		default:
+			err := errors.New("Invalid metric type! ")
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			log.Println(err)
+			return
+		}
+
+		ctx.Next()
+	}
 }
