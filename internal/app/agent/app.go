@@ -23,6 +23,7 @@ var (
 func Run() {
 	var cfg Config
 	Parse(&cfg)
+	fmt.Println(cfg)
 
 	pollTicker := time.NewTicker(cfg.PollInterval)
 	reportTicker := time.NewTicker(cfg.ReportInterval)
