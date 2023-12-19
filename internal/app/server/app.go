@@ -1,7 +1,6 @@
 package server
 
 import (
-	"flag"
 	"github.com/Imomali1/metrics/internal/api"
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
@@ -11,8 +10,8 @@ import (
 )
 
 func Run() {
-	address := flag.String("a", "localhost:8080", "отвечает за адрес эндпоинта HTTP-сервера")
-	flag.Parse()
+	var cfg Config
+	Parse(&cfg)
 
 	memStorage := storage.NewStorage()
 	repo := repository.New(memStorage)
@@ -20,5 +19,5 @@ func Run() {
 	handler := api.NewRouter(api.Options{
 		ServiceManager: service,
 	})
-	log.Fatal(http.ListenAndServe(*address, handler))
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, handler))
 }

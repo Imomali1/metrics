@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"flag"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
 	"log"
@@ -22,20 +21,18 @@ var (
 )
 
 func Run() {
-	serverAddress := flag.String("a", "localhost:8080", "отвечает за адрес эндпоинта HTTP-сервера")
-	pollInterval := flag.Int("p", 2, "частота отправки метрик на сервер")
-	reportInterval := flag.Int("r", 10, "частота опроса метрик из пакета runtime")
-	flag.Parse()
+	var cfg Config
+	Parse(&cfg)
 
-	pollTicker := time.NewTicker(time.Duration(*pollInterval) * time.Second)
-	reportTicker := time.NewTicker(time.Duration(*reportInterval) * time.Second)
+	pollTicker := time.NewTicker(cfg.PollInterval)
+	reportTicker := time.NewTicker(cfg.ReportInterval)
 
 	for {
 		select {
 		case <-pollTicker.C:
 			pollMetrics()
 		case <-reportTicker.C:
-			reportMetrics(*serverAddress)
+			reportMetrics(cfg.ServerAddress)
 		}
 	}
 }
