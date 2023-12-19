@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
@@ -30,6 +31,11 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	case gauge:
 		value, err := h.serviceManager.GetGaugeValue(metricName)
 		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				ctx.AbortWithStatus(http.StatusNotFound)
+				log.Println(err)
+				return
+			}
 			ctx.AbortWithStatus(http.StatusInternalServerError)
 			log.Println(err)
 			return
@@ -38,6 +44,11 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	case counter:
 		value, err := h.serviceManager.GetCounterValue(metricName)
 		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				ctx.AbortWithStatus(http.StatusNotFound)
+				log.Println(err)
+				return
+			}
 			ctx.AbortWithStatus(http.StatusInternalServerError)
 			log.Println(err)
 			return

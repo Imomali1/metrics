@@ -1,6 +1,9 @@
 package storage
 
-import "github.com/Imomali1/metrics/internal/entity"
+import (
+	"errors"
+	"github.com/Imomali1/metrics/internal/entity"
+)
 
 type metricStorage struct {
 	counterStorage map[string]int64
@@ -25,12 +28,18 @@ func (s *metricStorage) UpdateGauge(name string, gauge float64) error {
 }
 
 func (s *metricStorage) GetCounterValue(name string) (int64, error) {
-	value := s.counterStorage[name]
+	value, ok := s.counterStorage[name]
+	if !ok {
+		return 0, errors.New("not found")
+	}
 	return value, nil
 }
 
 func (s *metricStorage) GetGaugeValue(name string) (float64, error) {
-	value := s.gaugeStorage[name]
+	value, ok := s.gaugeStorage[name]
+	if !ok {
+		return 0, errors.New("not found")
+	}
 	return value, nil
 }
 
