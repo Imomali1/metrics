@@ -1,7 +1,9 @@
 package entity
 
+type MetricType string
+
 type Metric struct {
-	Type  string
+	Type  MetricType
 	Name  string
 	Value interface{}
 }

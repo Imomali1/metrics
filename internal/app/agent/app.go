@@ -1,45 +1,41 @@
 package agent
 
 import (
+	"flag"
 	"fmt"
+	"github.com/Imomali1/metrics/internal/entity"
 	"log"
 	"net/http"
 	"runtime"
 	"time"
 )
 
-type MetricType string
-
-type Metric struct {
-	Type  MetricType
-	Name  string
-	Value interface{}
-}
-
 const (
-	Gauge          MetricType = "gauge"
-	Counter        MetricType = "counter"
-	pollInterval              = 2 * time.Second
-	reportInterval            = 10 * time.Second
+	Gauge   entity.MetricType = "gauge"
+	Counter entity.MetricType = "counter"
 )
 
 var (
-	serverAddress  = "http://localhost:8080"
 	PollCount      int64
 	RandomValue    float64 = 123.0
-	currentMetrics []Metric
+	currentMetrics []entity.Metric
 )
 
 func Run() {
-	pollTicker := time.NewTicker(pollInterval)
-	reportTicker := time.NewTicker(reportInterval)
+	serverAddress := flag.String("a", "localhost:8080", "отвечает за адрес эндпоинта HTTP-сервера")
+	pollInterval := flag.Int("p", 2, "частота отправки метрик на сервер")
+	reportInterval := flag.Int("r", 10, "частота опроса метрик из пакета runtime")
+	flag.Parse()
+
+	pollTicker := time.NewTicker(time.Duration(*pollInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(*reportInterval) * time.Second)
 
 	for {
 		select {
 		case <-pollTicker.C:
 			pollMetrics()
 		case <-reportTicker.C:
-			reportMetrics()
+			reportMetrics(*serverAddress)
 		}
 	}
 }
@@ -48,7 +44,7 @@ func pollMetrics() {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
 	PollCount++
-	currentMetrics = []Metric{
+	currentMetrics = []entity.Metric{
 		{Type: Counter, Name: "PollCount", Value: PollCount},
 		{Type: Gauge, Name: "RandomValue", Value: RandomValue},
 		{Type: Gauge, Name: "Alloc", Value: float64(memStat.Alloc)},
@@ -81,13 +77,13 @@ func pollMetrics() {
 	}
 }
 
-func reportMetrics() {
+func reportMetrics(serverAddress string) {
 	if len(currentMetrics) == 0 {
 		log.Println("No metrics to report.")
 		return
 	}
 	for _, metric := range currentMetrics {
-		url := fmt.Sprintf("%s/update/%s/%s/%v",
+		url := fmt.Sprintf("http://%s/update/%s/%s/%v",
 			serverAddress, metric.Type, metric.Name, metric.Value)
 		resp, err := http.Post(url, "text/plain", nil)
 		if err != nil {

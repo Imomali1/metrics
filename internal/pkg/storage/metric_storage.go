@@ -45,17 +45,19 @@ func (s *metricStorage) GetGaugeValue(name string) (float64, error) {
 
 func (s *metricStorage) ListMetrics() ([]entity.Metric, error) {
 	allMetrics := make([]entity.Metric, 0)
+	var c entity.MetricType = "counter"
 	for name, value := range s.counterStorage {
 		allMetrics = append(allMetrics, entity.Metric{
-			Type:  "counter",
+			Type:  c,
 			Name:  name,
 			Value: value,
 		})
 	}
 
+	var g entity.MetricType = "gauge"
 	for name, value := range s.gaugeStorage {
 		allMetrics = append(allMetrics, entity.Metric{
-			Type:  "counter",
+			Type:  g,
 			Name:  name,
 			Value: value,
 		})
