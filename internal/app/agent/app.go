@@ -23,10 +23,9 @@ var (
 func Run() {
 	var cfg Config
 	Parse(&cfg)
-	fmt.Println(cfg)
 
-	pollTicker := time.NewTicker(cfg.PollInterval)
-	reportTicker := time.NewTicker(cfg.ReportInterval)
+	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
 
 	for {
 		select {

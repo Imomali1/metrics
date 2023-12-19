@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"github.com/Imomali1/metrics/internal/api"
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
@@ -13,7 +12,6 @@ import (
 func Run() {
 	var cfg Config
 	Parse(&cfg)
-	fmt.Println(cfg)
 
 	memStorage := storage.NewStorage()
 	repo := repository.New(memStorage)
