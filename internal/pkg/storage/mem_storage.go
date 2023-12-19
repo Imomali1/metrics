@@ -1,25 +1,21 @@
 package storage
 
-type GaugeStorage interface {
-	UpdateGaugeValue(key string, value float64)
-	SetGaugeValue(key string, value float64)
-	GetGaugeValue(key string) float64
-}
+import "github.com/Imomali1/metrics/internal/entity"
 
-type CounterStorage interface {
-	UpdateCounterValue(key string, value int64)
-	SetCounterValue(key string, value int64)
-	GetCounterValue(key string) int64
+type MetricStorage interface {
+	UpdateCounter(name string, counter int64) error
+	UpdateGauge(name string, gauge float64) error
+	GetCounterValue(name string) (int64, error)
+	GetGaugeValue(name string) (float64, error)
+	ListMetrics() ([]entity.Metric, error)
 }
 
 type Storage struct {
-	GaugeStorage
-	CounterStorage
+	MetricStorage
 }
 
 func NewStorage() *Storage {
 	return &Storage{
-		GaugeStorage:   newGaugeStorage(),
-		CounterStorage: newCounterStorage(),
+		MetricStorage: newMetricStorage(),
 	}
 }

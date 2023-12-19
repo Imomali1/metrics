@@ -4,7 +4,6 @@ import (
 	"github.com/Imomali1/metrics/internal/handlers"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 type Handlers struct {
@@ -21,17 +20,17 @@ func NewRouter(options Options) *gin.Engine {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
+	router.LoadHTMLGlob("static/templates/*.html")
+
 	h := Handlers{
 		MetricHandler: handlers.NewMetricHandler(handlers.MetricHandlerOptions{
 			ServiceManager: options.ServiceManager,
 		}),
 	}
 
-	router.GET("/", func(ctx *gin.Context) {
-		ctx.String(http.StatusOK, "Welcome to metrics application!")
-	})
-
-	router.POST("/update/:type/:name/:value", h.MetricHandler.UpdateMetric)
+	router.GET("/", h.MetricHandler.ListMetrics)
+	router.POST("/update/:type/:name/:value", h.MetricHandler.UpdateMetricValue)
+	router.GET("/value/:type/:name", h.MetricHandler.GetMetricValueByName)
 
 	return router
 }

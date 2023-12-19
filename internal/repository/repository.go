@@ -1,23 +1,24 @@
 package repository
 
-import "github.com/Imomali1/metrics/internal/pkg/storage"
+import (
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/storage"
+)
 
-type GaugeRepository interface {
-	UpdateGauge(name string, gauge float64) error
-}
-
-type CounterRepository interface {
+type MetricRepository interface {
 	UpdateCounter(name string, counter int64) error
+	UpdateGauge(name string, gauge float64) error
+	GetCounterValue(name string) (int64, error)
+	GetGaugeValue(name string) (float64, error)
+	ListMetrics() ([]entity.Metric, error)
 }
 
 type Repository struct {
-	GaugeRepository
-	CounterRepository
+	MetricRepository
 }
 
 func New(memStorage *storage.Storage) *Repository {
 	return &Repository{
-		GaugeRepository:   newGaugeRepository(memStorage),
-		CounterRepository: newCounterRepository(memStorage),
+		MetricRepository: newMetricRepository(memStorage),
 	}
 }

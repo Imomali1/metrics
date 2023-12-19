@@ -8,16 +8,11 @@ import (
 	"strconv"
 )
 
-const (
-	gauge   = "gauge"
-	counter = "counter"
-)
-
-func (h *MetricHandler) UpdateMetric(ctx *gin.Context) {
+func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	metricType := ctx.Param("type")
 	if metricType != gauge && metricType != counter {
 		err := errors.New("Invalid metric type! ")
-		ctx.AbortWithStatus(http.StatusBadRequest)
+		ctx.AbortWithStatus(http.StatusNotFound)
 		log.Println(err)
 		return
 	}
@@ -30,36 +25,25 @@ func (h *MetricHandler) UpdateMetric(ctx *gin.Context) {
 		return
 	}
 
-	metricValue := ctx.Param("value")
-
+	var metricValue string
 	switch metricType {
 	case gauge:
-		gaugeValue, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			ctx.AbortWithStatus(http.StatusBadRequest)
-			log.Println(err)
-			return
-		}
-		err = h.serviceManager.UpdateGauge(metricName, gaugeValue)
+		value, err := h.serviceManager.GetGaugeValue(metricName)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusInternalServerError)
 			log.Println(err)
 			return
 		}
+		metricValue = strconv.FormatFloat(value, 'f', -1, 64)
 	case counter:
-		counterValue, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			ctx.AbortWithStatus(http.StatusBadRequest)
-			log.Println(err)
-			return
-		}
-		err = h.serviceManager.UpdateCounter(metricName, counterValue)
+		value, err := h.serviceManager.GetCounterValue(metricName)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusInternalServerError)
 			log.Println(err)
 			return
 		}
+		metricValue = strconv.FormatInt(value, 10)
 	}
 
-	ctx.Status(http.StatusOK)
+	ctx.String(http.StatusOK, metricValue)
 }

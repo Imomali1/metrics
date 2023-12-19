@@ -1,23 +1,24 @@
 package services
 
-import "github.com/Imomali1/metrics/internal/repository"
+import (
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/repository"
+)
 
-type GaugeService interface {
-	UpdateGauge(name string, gauge float64) error
-}
-
-type CounterService interface {
+type MetricService interface {
 	UpdateCounter(name string, counter int64) error
+	UpdateGauge(name string, gauge float64) error
+	GetCounterValue(name string) (int64, error)
+	GetGaugeValue(name string) (float64, error)
+	ListMetrics() ([]entity.Metric, error)
 }
 
 type Services struct {
-	GaugeService
-	CounterService
+	MetricService
 }
 
 func New(repo *repository.Repository) *Services {
 	return &Services{
-		GaugeService:   newGaugeService(repo.GaugeRepository),
-		CounterService: newCounterService(repo.CounterRepository),
+		MetricService: newMetricService(repo),
 	}
 }
