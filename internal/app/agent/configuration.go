@@ -2,8 +2,8 @@ package agent
 
 import (
 	"flag"
-	"fmt"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -12,33 +12,43 @@ type Config struct {
 	ReportInterval int
 }
 
+const (
+	defaultServerAddress  = "localhost:8080"
+	defaultPollInterval   = 2
+	defaultReportInterval = 10
+)
+
 func Parse(cfg *Config) {
-	serverAddress := flag.String("a", "localhost:8080", "отвечает за адрес эндпоинта HTTP-сервера")
-	pollInterval := flag.Int("p", 2, "частота опроса метрик из пакета runtime")
-	reportInterval := flag.Int("r", 10, "частота отправки метрик на сервер")
+	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
+	pollInterval := flag.Int("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
+	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
 	flag.Parse()
 
-	cfg.ServerAddress = castToString(getEnvOrDefaultValue("ADDRESS", *serverAddress))
-	cfg.PollInterval = castToInt(getEnvOrDefaultValue("POLL_INTERVAL", *pollInterval))
-	cfg.ReportInterval = castToInt(getEnvOrDefaultValue("REPORT_INTERVAL", *reportInterval))
+	cfg.ServerAddress = getEnvString("ADDRESS", *serverAddress, defaultServerAddress)
+	cfg.PollInterval = getEnvInt("POLL_INTERVAL", *pollInterval, defaultPollInterval)
+	cfg.ReportInterval = getEnvInt("REPORT_INTERVAL", *reportInterval, defaultReportInterval)
 }
 
-func getEnvOrDefaultValue(key string, defaultValue interface{}) interface{} {
-	_, exists := os.LookupEnv(key)
-	if !exists {
-		return defaultValue
+func getEnvString(key string, argumentValue string, defaultValue string) string {
+	if os.Getenv(key) != "" {
+		return os.Getenv(key)
 	}
-	return os.Getenv(key)
-}
-
-func castToString(i interface{}) string {
-	return fmt.Sprintf("%v", i)
-}
-
-func castToInt(i interface{}) int {
-	v, ok := i.(int)
-	if !ok {
-		return 0
+	if argumentValue != "" {
+		return argumentValue
 	}
-	return v
+	return defaultValue
+}
+
+func getEnvInt(key string, argumentValue int, defaultValue int) int {
+	if os.Getenv(key) != "" {
+		value, err := strconv.Atoi(os.Getenv(key))
+		if err == nil {
+			return value
+		}
+	}
+
+	if argumentValue > 0 {
+		return argumentValue
+	}
+	return defaultValue
 }
