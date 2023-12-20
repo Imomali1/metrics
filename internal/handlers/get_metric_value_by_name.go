@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
@@ -12,17 +11,17 @@ import (
 func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	metricType := ctx.Param("type")
 	if metricType != gauge && metricType != counter {
-		err := errors.New("Invalid metric type! ")
+		//err := errors.New("Invalid metric type! ")
 		ctx.AbortWithStatus(http.StatusNotFound)
-		log.Println(err)
+		//log.Println(err)
 		return
 	}
 
 	metricName := ctx.Param("name")
 	if metricName == "" {
-		err := errors.New("Metric name is empty! ")
+		//err := errors.New("Metric name is empty! ")
 		ctx.AbortWithStatus(http.StatusNotFound)
-		log.Println(err)
+		//log.Println(err)
 		return
 	}
 

@@ -1,10 +1,7 @@
 package middlewares
 
 import (
-	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,9 +17,9 @@ const (
 func ValidateUpdateURL() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if ctx.Request.Method != http.MethodPost {
-			err := fmt.Errorf("Invalid http method! Expected %s, Got %s. ", http.MethodPost, ctx.Request.Method)
+			//err := fmt.Errorf("Invalid http method! Expected %s, Got %s. ", http.MethodPost, ctx.Request.Method)
 			ctx.AbortWithStatus(http.StatusNotFound)
-			log.Println(err)
+			//log.Println(err)
 			return
 		}
 
@@ -38,17 +35,17 @@ func ValidateUpdateURL() gin.HandlerFunc {
 		params := strings.Split(path, "/")
 
 		if len(params) == 2 && params[1] != gauge && params[1] != counter {
-			err := fmt.Errorf("Invalid metric type and url path!\n"+
-				"Expected url params length = %d, Got %d. ", 4, len(params))
+			//err := fmt.Errorf("Invalid metric type and url path!\n"+
+			//	"Expected url params length = %d, Got %d. ", 4, len(params))
 			ctx.AbortWithStatus(http.StatusBadRequest)
-			log.Println(err)
+			//log.Println(err)
 			return
 		}
 
 		if len(params) != 4 {
-			err := fmt.Errorf("Invalid url path! Expected url params length = %d, Got %d. ", 4, len(params))
+			//err := fmt.Errorf("Invalid url path! Expected url params length = %d, Got %d. ", 4, len(params))
 			ctx.AbortWithStatus(http.StatusNotFound)
-			log.Println(err)
+			//log.Println(err)
 			return
 		}
 
@@ -56,23 +53,23 @@ func ValidateUpdateURL() gin.HandlerFunc {
 		case gauge:
 			_, err := strconv.ParseFloat(params[3], 64)
 			if err != nil {
-				err = fmt.Errorf("Invalid gauge value = %v ! Expected float64. ", params[3])
+				//err = fmt.Errorf("Invalid gauge value = %v ! Expected float64. ", params[3])
 				ctx.AbortWithStatus(http.StatusBadRequest)
-				log.Println(err)
+				//log.Println(err)
 				return
 			}
 		case counter:
 			_, err := strconv.ParseInt(params[3], 10, 64)
 			if err != nil {
-				err = fmt.Errorf("Invalid counter value = %v ! Expected int64. ", params[3])
+				//err = fmt.Errorf("Invalid counter value = %v ! Expected int64. ", params[3])
 				ctx.AbortWithStatus(http.StatusBadRequest)
-				log.Println(err)
+				//log.Println(err)
 				return
 			}
 		default:
-			err := errors.New("Invalid metric type! ")
+			//err := errors.New("Invalid metric type! ")
 			ctx.AbortWithStatus(http.StatusBadRequest)
-			log.Println(err)
+			//log.Println(err)
 			return
 		}
 
