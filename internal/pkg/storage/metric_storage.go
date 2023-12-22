@@ -29,7 +29,7 @@ func (s *metricStorage) UpdateGauge(name string, gauge float64) error {
 func (s *metricStorage) GetCounterValue(name string) (int64, error) {
 	value, ok := s.counterStorage[name]
 	if !ok {
-		return 0, entity.MetricNotFoundErr
+		return 0, entity.ErrMetricNotFound
 	}
 	return value, nil
 }
@@ -37,7 +37,7 @@ func (s *metricStorage) GetCounterValue(name string) (int64, error) {
 func (s *metricStorage) GetGaugeValue(name string) (float64, error) {
 	value, ok := s.gaugeStorage[name]
 	if !ok {
-		return 0, entity.MetricNotFoundErr
+		return 0, entity.ErrMetricNotFound
 	}
 	return value, nil
 }

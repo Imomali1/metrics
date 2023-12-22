@@ -31,7 +31,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	case gauge:
 		value, err := h.serviceManager.GetGaugeValue(metricName)
 		if err != nil {
-			if errors.Is(err, entity.MetricNotFoundErr) {
+			if errors.Is(err, entity.ErrMetricNotFound) {
 				ctx.AbortWithStatus(http.StatusNotFound)
 				log.Println(err)
 				return
@@ -44,7 +44,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	case counter:
 		value, err := h.serviceManager.GetCounterValue(metricName)
 		if err != nil {
-			if errors.Is(err, entity.MetricNotFoundErr) {
+			if errors.Is(err, entity.ErrMetricNotFound) {
 				ctx.AbortWithStatus(http.StatusNotFound)
 				log.Println(err)
 				return

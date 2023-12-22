@@ -5,5 +5,5 @@ import (
 )
 
 var (
-	MetricNotFoundErr = errors.New("metric not found")
+	ErrMetricNotFound = errors.New("metric not found")
 )
