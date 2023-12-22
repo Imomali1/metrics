@@ -23,13 +23,6 @@ func ValidateUpdateURL() gin.HandlerFunc {
 			return
 		}
 
-		//if ctx.GetHeader(contentTypeHeader) != textPlain {
-		//	err := fmt.Errorf("Invalid content type! Expected %s, Got %s. ", textPlain, ctx.GetHeader(contentTypeHeader))
-		//	ctx.AbortWithStatus(http.StatusBadRequest)
-		//	log.Println(err)
-		//	return
-		//}
-
 		path := ctx.Request.URL.RequestURI()
 		path = strings.Trim(path, "/")
 		params := strings.Split(path, "/")

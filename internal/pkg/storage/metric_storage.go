@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"github.com/Imomali1/metrics/internal/entity"
 )
 
@@ -30,7 +29,7 @@ func (s *metricStorage) UpdateGauge(name string, gauge float64) error {
 func (s *metricStorage) GetCounterValue(name string) (int64, error) {
 	value, ok := s.counterStorage[name]
 	if !ok {
-		return 0, errors.New("not found")
+		return 0, entity.MetricNotFoundErr
 	}
 	return value, nil
 }
@@ -38,28 +37,26 @@ func (s *metricStorage) GetCounterValue(name string) (int64, error) {
 func (s *metricStorage) GetGaugeValue(name string) (float64, error) {
 	value, ok := s.gaugeStorage[name]
 	if !ok {
-		return 0, errors.New("not found")
+		return 0, entity.MetricNotFoundErr
 	}
 	return value, nil
 }
 
 func (s *metricStorage) ListMetrics() ([]entity.Metric, error) {
 	allMetrics := make([]entity.Metric, 0)
-	var c entity.MetricType = "counter"
 	for name, value := range s.counterStorage {
 		allMetrics = append(allMetrics, entity.Metric{
-			Type:  c,
-			Name:  name,
-			Value: value,
+			Type:         entity.Counter,
+			Name:         name,
+			ValueCounter: value,
 		})
 	}
 
-	var g entity.MetricType = "gauge"
 	for name, value := range s.gaugeStorage {
 		allMetrics = append(allMetrics, entity.Metric{
-			Type:  g,
-			Name:  name,
-			Value: value,
+			Type:       entity.Gauge,
+			Name:       name,
+			ValueGauge: value,
 		})
 	}
 

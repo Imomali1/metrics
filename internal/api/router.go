@@ -23,9 +23,7 @@ func NewRouter(options Options) *gin.Engine {
 	router.LoadHTMLGlob("static/templates/*.html")
 
 	h := Handlers{
-		MetricHandler: handlers.NewMetricHandler(handlers.MetricHandlerOptions{
-			ServiceManager: options.ServiceManager,
-		}),
+		MetricHandler: handlers.NewMetricHandler(options.ServiceManager.MetricService),
 	}
 
 	router.GET("/", h.MetricHandler.ListMetrics)

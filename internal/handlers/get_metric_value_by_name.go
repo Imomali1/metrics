@@ -1,18 +1,19 @@
 package handlers
 
 import (
+	"errors"
+	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	metricType := ctx.Param("type")
-	if metricType != gauge && metricType != counter {
+	if metricType != entity.Gauge && metricType != entity.Counter {
 		//err := errors.New("Invalid metric type! ")
-		ctx.AbortWithStatus(http.StatusNotFound)
+		ctx.AbortWithStatus(http.StatusBadRequest)
 		//log.Println(err)
 		return
 	}
@@ -30,7 +31,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	case gauge:
 		value, err := h.serviceManager.GetGaugeValue(metricName)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if errors.Is(err, entity.MetricNotFoundErr) {
 				ctx.AbortWithStatus(http.StatusNotFound)
 				log.Println(err)
 				return
@@ -43,7 +44,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	case counter:
 		value, err := h.serviceManager.GetCounterValue(metricName)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if errors.Is(err, entity.MetricNotFoundErr) {
 				ctx.AbortWithStatus(http.StatusNotFound)
 				log.Println(err)
 				return

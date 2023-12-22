@@ -1,17 +1,23 @@
 package handlers
 
-import "github.com/Imomali1/metrics/internal/services"
+import (
+	"github.com/Imomali1/metrics/internal/entity"
+)
 
-type MetricHandlerOptions struct {
-	ServiceManager *services.Services
+type IMetricService interface {
+	UpdateCounter(name string, counter int64) error
+	UpdateGauge(name string, gauge float64) error
+	GetCounterValue(name string) (int64, error)
+	GetGaugeValue(name string) (float64, error)
+	ListMetrics() ([]entity.Metric, error)
 }
 
 type MetricHandler struct {
-	serviceManager *services.Services
+	serviceManager IMetricService
 }
 
-func NewMetricHandler(options MetricHandlerOptions) *MetricHandler {
+func NewMetricHandler(sm IMetricService) *MetricHandler {
 	return &MetricHandler{
-		serviceManager: options.ServiceManager,
+		serviceManager: sm,
 	}
 }
