@@ -2,14 +2,18 @@ package server
 
 import (
 	"github.com/Imomali1/metrics/internal/api"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
 	"github.com/Imomali1/metrics/internal/services"
-	"log"
 	"net/http"
 )
 
-func Run() {
+func Run() error {
+	if err := logger.InitLogger(); err != nil {
+		return err
+	}
+
 	var cfg Config
 	Parse(&cfg)
 
@@ -19,5 +23,7 @@ func Run() {
 	handler := api.NewRouter(api.Options{
 		ServiceManager: service,
 	})
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, handler))
+
+	logger.Log.Infow("Running server...", "address", cfg.ServerAddress)
+	return http.ListenAndServe(cfg.ServerAddress, handler)
 }
