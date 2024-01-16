@@ -9,15 +9,20 @@ import (
 	"net/http"
 )
 
-func Run() {
-	var cfg Config
-	Parse(&cfg)
-
-	memStorage := storage.NewStorage()
+func newHandler() http.Handler {
+	memStorage := storage.New()
 	repo := repository.New(memStorage)
 	service := services.New(repo)
 	handler := api.NewRouter(api.Options{
 		ServiceManager: service,
 	})
+	return handler
+}
+
+func Run() {
+	var cfg Config
+	Parse(&cfg)
+
+	handler := newHandler()
 	log.Fatal(http.ListenAndServe(cfg.ServerAddress, handler))
 }

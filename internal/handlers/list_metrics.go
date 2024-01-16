@@ -13,5 +13,6 @@ func (h *MetricHandler) ListMetrics(ctx *gin.Context) {
 		log.Println(err)
 		return
 	}
+
 	ctx.HTML(http.StatusOK, "index.html", allMetrics)
 }

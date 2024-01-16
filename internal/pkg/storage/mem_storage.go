@@ -14,7 +14,7 @@ type Storage struct {
 	MetricStorage
 }
 
-func NewStorage() *Storage {
+func New() *Storage {
 	return &Storage{
 		MetricStorage: newMetricStorage(),
 	}
