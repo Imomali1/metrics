@@ -14,13 +14,11 @@ func newMetricService(repo *repository.Repository) *metricService {
 }
 
 func (s *metricService) UpdateCounter(name string, counter int64) error {
-	err := s.repo.UpdateCounter(name, counter)
-	return err
+	return s.repo.UpdateCounter(name, counter)
 }
 
 func (s *metricService) UpdateGauge(name string, gauge float64) error {
-	err := s.repo.UpdateGauge(name, gauge)
-	return err
+	return s.repo.UpdateGauge(name, gauge)
 }
 
 func (s *metricService) GetCounterValue(name string) (int64, error) {

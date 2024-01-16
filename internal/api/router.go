@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/Imomali1/metrics/internal/handlers"
+	"github.com/Imomali1/metrics/internal/pkg/middlewares"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -16,16 +17,13 @@ type Options struct {
 
 func NewRouter(options Options) *gin.Engine {
 	router := gin.New()
-	gin.SetMode(gin.TestMode)
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+	router.Use(gin.Recovery(), gin.Logger())
+	router.Use(middlewares.Logger())
 
 	router.LoadHTMLGlob("static/templates/*.html")
 
 	h := Handlers{
-		MetricHandler: handlers.NewMetricHandler(handlers.MetricHandlerOptions{
-			ServiceManager: options.ServiceManager,
-		}),
+		MetricHandler: handlers.NewMetricHandler(options.ServiceManager.MetricService),
 	}
 
 	router.GET("/", h.MetricHandler.ListMetrics)

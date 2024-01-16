@@ -1,61 +1,58 @@
 package handlers
 
 import (
+	"errors"
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
-	"log"
 	"net/http"
 	"strconv"
 )
 
-const (
-	gauge   = "gauge"
-	counter = "counter"
-)
-
 func (h *MetricHandler) UpdateMetricValue(ctx *gin.Context) {
 	metricType := ctx.Param("type")
-	if metricType != gauge && metricType != counter {
-		//err := errors.New("Invalid metric type! ")
+	if metricType != entity.Gauge && metricType != entity.Counter {
+		err := errors.New("invalid metric type ")
 		ctx.AbortWithStatus(http.StatusBadRequest)
-		//log.Println(err)
+		logger.Log.Info(err)
 		return
 	}
 
 	metricName := ctx.Param("name")
 	if metricName == "" {
-		//err := errors.New("Metric name is empty! ")
+		err := errors.New("metric name is empty ")
 		ctx.AbortWithStatus(http.StatusNotFound)
-		//log.Println(err)
+		logger.Log.Info(err)
 		return
 	}
 
 	metricValue := ctx.Param("value")
 
 	switch metricType {
-	case gauge:
+	case entity.Gauge:
 		gaugeValue, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusBadRequest)
-			log.Println(err)
+			logger.Log.Info(err)
 			return
 		}
 		err = h.serviceManager.UpdateGauge(metricName, gaugeValue)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusInternalServerError)
-			log.Println(err)
+			logger.Log.Info(err)
 			return
 		}
-	case counter:
+	case entity.Counter:
 		counterValue, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusBadRequest)
-			log.Println(err)
+			logger.Log.Info(err)
 			return
 		}
 		err = h.serviceManager.UpdateCounter(metricName, counterValue)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusInternalServerError)
-			log.Println(err)
+			logger.Log.Info(err)
 			return
 		}
 	}

@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-const (
-	Gauge   entity.MetricType = "gauge"
-	Counter entity.MetricType = "counter"
-)
-
 var (
 	PollCount      int64
 	RandomValue    float64 = 123.0
@@ -42,35 +37,35 @@ func pollMetrics() {
 	runtime.ReadMemStats(&memStat)
 	PollCount++
 	currentMetrics = []entity.Metric{
-		{Type: Counter, Name: "PollCount", Value: PollCount},
-		{Type: Gauge, Name: "RandomValue", Value: RandomValue},
-		{Type: Gauge, Name: "Alloc", Value: float64(memStat.Alloc)},
-		{Type: Gauge, Name: "BuckHashSys", Value: float64(memStat.BuckHashSys)},
-		{Type: Gauge, Name: "Frees", Value: float64(memStat.Frees)},
-		{Type: Gauge, Name: "GCCPUFraction", Value: memStat.GCCPUFraction},
-		{Type: Gauge, Name: "GCSys", Value: float64(memStat.GCSys)},
-		{Type: Gauge, Name: "HeapAlloc", Value: float64(memStat.HeapAlloc)},
-		{Type: Gauge, Name: "HeapIdle", Value: float64(memStat.HeapIdle)},
-		{Type: Gauge, Name: "HeapInuse", Value: float64(memStat.HeapInuse)},
-		{Type: Gauge, Name: "HeapObjects", Value: float64(memStat.HeapObjects)},
-		{Type: Gauge, Name: "HeapReleased", Value: float64(memStat.HeapReleased)},
-		{Type: Gauge, Name: "HeapSys", Value: float64(memStat.HeapSys)},
-		{Type: Gauge, Name: "LastGC", Value: float64(memStat.LastGC)},
-		{Type: Gauge, Name: "Lookups", Value: float64(memStat.Lookups)},
-		{Type: Gauge, Name: "MCacheInuse", Value: float64(memStat.MCacheInuse)},
-		{Type: Gauge, Name: "MCacheSys", Value: float64(memStat.MCacheSys)},
-		{Type: Gauge, Name: "MSpanInuse", Value: float64(memStat.MSpanInuse)},
-		{Type: Gauge, Name: "MSpanSys", Value: float64(memStat.MSpanSys)},
-		{Type: Gauge, Name: "Mallocs", Value: float64(memStat.Mallocs)},
-		{Type: Gauge, Name: "NextGC", Value: float64(memStat.NextGC)},
-		{Type: Gauge, Name: "NumForcedGC", Value: float64(memStat.NumForcedGC)},
-		{Type: Gauge, Name: "NumGC", Value: float64(memStat.NumGC)},
-		{Type: Gauge, Name: "OtherSys", Value: float64(memStat.OtherSys)},
-		{Type: Gauge, Name: "PauseTotalNs", Value: float64(memStat.PauseTotalNs)},
-		{Type: Gauge, Name: "StackInuse", Value: float64(memStat.StackInuse)},
-		{Type: Gauge, Name: "StackSys", Value: float64(memStat.StackSys)},
-		{Type: Gauge, Name: "Sys", Value: float64(memStat.Sys)},
-		{Type: Gauge, Name: "TotalAlloc", Value: float64(memStat.TotalAlloc)},
+		{Type: entity.Counter, Name: "PollCount", ValueCounter: PollCount},
+		{Type: entity.Gauge, Name: "RandomValue", ValueGauge: RandomValue},
+		{Type: entity.Gauge, Name: "Alloc", ValueGauge: float64(memStat.Alloc)},
+		{Type: entity.Gauge, Name: "BuckHashSys", ValueGauge: float64(memStat.BuckHashSys)},
+		{Type: entity.Gauge, Name: "Frees", ValueGauge: float64(memStat.Frees)},
+		{Type: entity.Gauge, Name: "GCCPUFraction", ValueGauge: memStat.GCCPUFraction},
+		{Type: entity.Gauge, Name: "GCSys", ValueGauge: float64(memStat.GCSys)},
+		{Type: entity.Gauge, Name: "HeapAlloc", ValueGauge: float64(memStat.HeapAlloc)},
+		{Type: entity.Gauge, Name: "HeapIdle", ValueGauge: float64(memStat.HeapIdle)},
+		{Type: entity.Gauge, Name: "HeapInuse", ValueGauge: float64(memStat.HeapInuse)},
+		{Type: entity.Gauge, Name: "HeapObjects", ValueGauge: float64(memStat.HeapObjects)},
+		{Type: entity.Gauge, Name: "HeapReleased", ValueGauge: float64(memStat.HeapReleased)},
+		{Type: entity.Gauge, Name: "HeapSys", ValueGauge: float64(memStat.HeapSys)},
+		{Type: entity.Gauge, Name: "LastGC", ValueGauge: float64(memStat.LastGC)},
+		{Type: entity.Gauge, Name: "Lookups", ValueGauge: float64(memStat.Lookups)},
+		{Type: entity.Gauge, Name: "MCacheInuse", ValueGauge: float64(memStat.MCacheInuse)},
+		{Type: entity.Gauge, Name: "MCacheSys", ValueGauge: float64(memStat.MCacheSys)},
+		{Type: entity.Gauge, Name: "MSpanInuse", ValueGauge: float64(memStat.MSpanInuse)},
+		{Type: entity.Gauge, Name: "MSpanSys", ValueGauge: float64(memStat.MSpanSys)},
+		{Type: entity.Gauge, Name: "Mallocs", ValueGauge: float64(memStat.Mallocs)},
+		{Type: entity.Gauge, Name: "NextGC", ValueGauge: float64(memStat.NextGC)},
+		{Type: entity.Gauge, Name: "NumForcedGC", ValueGauge: float64(memStat.NumForcedGC)},
+		{Type: entity.Gauge, Name: "NumGC", ValueGauge: float64(memStat.NumGC)},
+		{Type: entity.Gauge, Name: "OtherSys", ValueGauge: float64(memStat.OtherSys)},
+		{Type: entity.Gauge, Name: "PauseTotalNs", ValueGauge: float64(memStat.PauseTotalNs)},
+		{Type: entity.Gauge, Name: "StackInuse", ValueGauge: float64(memStat.StackInuse)},
+		{Type: entity.Gauge, Name: "StackSys", ValueGauge: float64(memStat.StackSys)},
+		{Type: entity.Gauge, Name: "Sys", ValueGauge: float64(memStat.Sys)},
+		{Type: entity.Gauge, Name: "TotalAlloc", ValueGauge: float64(memStat.TotalAlloc)},
 	}
 }
 
@@ -80,16 +75,24 @@ func reportMetrics(serverAddress string) {
 		return
 	}
 	for _, metric := range currentMetrics {
-		url := fmt.Sprintf("http://%s/update/%s/%s/%v",
-			serverAddress, metric.Type, metric.Name, metric.Value)
-		resp, err := http.Post(url, "text/plain", nil)
-		if err != nil {
-			fmt.Println("Error in reporting metrics:", err)
+		url := fmt.Sprintf("http://%s/update/%s/%s/", serverAddress, metric.Type, metric.Name)
+		switch metric.Type {
+		case entity.Counter:
+			url = fmt.Sprintf("%s%d", url, metric.ValueCounter)
+		case entity.Gauge:
+			url = fmt.Sprintf("%s%f", url, metric.ValueGauge)
+		default:
+			log.Println("Invalid metric type: ", metric.Type)
 			continue
 		}
-		defer resp.Body.Close()
+		resp, err := http.Post(url, "text/plain", nil)
+		if err != nil {
+			log.Println("Error in reporting metrics:", err)
+			continue
+		}
+		resp.Body.Close()
 
-		fmt.Println("Metrics reported successfully.")
+		log.Println("Metrics reported successfully.")
 	}
 	currentMetrics = nil
 }
