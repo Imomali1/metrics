@@ -26,7 +26,7 @@ func (h *MetricHandler) ListMetrics(ctx *gin.Context) {
 	ctx.HTML(http.StatusOK, "index.html", metrics)
 }
 
-func modifyMetrics(metrics []entity.Metric) []ModifiedMetric {
+func modifyMetrics(metrics []entity.Metrics) []ModifiedMetric {
 	if len(metrics) == 0 {
 		return nil
 	}
@@ -34,14 +34,14 @@ func modifyMetrics(metrics []entity.Metric) []ModifiedMetric {
 	ms := make([]ModifiedMetric, len(metrics))
 	for i, metric := range metrics {
 		var value interface{}
-		if metric.Type == entity.Counter {
-			value = metric.ValueCounter
-		} else if metric.Type == entity.Gauge {
-			value = metric.ValueGauge
+		if metric.MType == entity.Counter {
+			value = metric.Delta
+		} else if metric.MType == entity.Gauge {
+			value = metric.Value
 		}
 		ms[i] = ModifiedMetric{
-			Type:  metric.Type,
-			Name:  metric.Name,
+			Type:  metric.MType,
+			Name:  metric.ID,
 			Value: value,
 		}
 	}

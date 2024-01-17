@@ -47,6 +47,8 @@ func NTestServer(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			resp, _ := testRequest(t, ts, http.MethodPost, v.url)
 			assert.Equal(t, v.status, resp.StatusCode)
+			err := resp.Body.Close()
+			assert.NoError(t, err)
 		})
 	}
 
@@ -67,6 +69,8 @@ func NTestServer(t *testing.T) {
 			resp, get := testRequest(t, ts, "GET", v.url)
 			assert.Equal(t, v.status, resp.StatusCode)
 			assert.Equal(t, v.want, get)
+			err := resp.Body.Close()
+			assert.NoError(t, err)
 		})
 	}
 }
