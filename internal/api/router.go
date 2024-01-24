@@ -17,9 +17,10 @@ type Options struct {
 }
 
 func NewRouter(options Options) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Recovery(), gin.Logger())
-	router.Use(middlewares.Logger())
+	router.Use(gin.Recovery())
+	router.Use(middlewares.RequestResponseLogger())
 
 	router.LoadHTMLGlob("static/templates/*.html")
 

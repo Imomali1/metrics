@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"log"
 	"net/http"
 	"runtime"
@@ -20,10 +19,10 @@ var (
 )
 
 func Run() error {
-	// Initialize Agent Logger
-	if err := logger.InitALogger(); err != nil {
-		return err
-	}
+	//// Initialize Agent Logger
+	//if err := logger.InitALogger(); err != nil {
+	//	return err
+	//}
 
 	// Parse agent configs
 	var cfg Config
@@ -94,7 +93,7 @@ func pollMetrics() {
 // reportMetrics sends agent metrics to server
 func reportMetrics(serverAddress string) {
 	if len(currentMetrics) == 0 {
-		logger.ALog.Info("No metrics to report.")
+		//logger.ALog.Info("No metrics to report.")
 		return
 	}
 	for _, metric := range currentMetrics {
@@ -102,22 +101,22 @@ func reportMetrics(serverAddress string) {
 
 		body, err := json.Marshal(metric)
 		if err != nil {
-			logger.ALog.Error("Error in reporting metrics:", err)
+			//logger.ALog.Error("Error in reporting metrics:", err)
 			continue
 		}
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 		if err != nil {
-			logger.ALog.Error("Error in reporting metrics:", err)
+			//logger.ALog.Error("Error in reporting metrics:", err)
 			continue
 		}
 		err = resp.Body.Close()
 		if err != nil {
-			logger.ALog.Error("Error in closing response body", err)
+			//logger.ALog.Error("Error in closing response body", err)
 			continue
 		}
 
-		logger.ALog.Info("Metrics reported successfully.")
+		//logger.ALog.Info("Metrics reported successfully.")
 	}
 	currentMetrics = nil
 }
@@ -130,7 +129,7 @@ func serverIsHealthy(serverAddress string) bool {
 	for i := 0; i < retry; i++ {
 		resp, err := http.Get(url)
 		if err != nil || resp.StatusCode != http.StatusOK {
-			logger.ALog.Error(err)
+			//logger.ALog.Error(err)
 			log.Printf("Attempt #%d. Connection refused. Left %d attempts.\n", i+1, retry-i-1)
 			time.Sleep(delay)
 			continue

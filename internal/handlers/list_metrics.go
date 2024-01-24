@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -17,7 +16,7 @@ func (h *MetricHandler) ListMetrics(ctx *gin.Context) {
 	allMetrics, err := h.serviceManager.ListMetrics()
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
-		logger.Log.Info(err)
+		//logger.Log.Info(err)
 		return
 	}
 
