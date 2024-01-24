@@ -34,8 +34,9 @@ func NewLogger(writer io.Writer, level string, serviceName string) Logger {
 	var l zerolog.Logger
 	if log != nil {
 		l = log.Logger
+	} else {
+		l = initLogger(writer, level)
 	}
-	l = initLogger(writer, level)
 	return Logger{
 		Logger: l.With().Str("service", serviceName).Logger(),
 	}
