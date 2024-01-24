@@ -16,7 +16,7 @@ func (h *MetricHandler) ListMetrics(ctx *gin.Context) {
 	allMetrics, err := h.serviceManager.ListMetrics()
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
-		//logger.Log.Info(err)
+		//logger.Logger.Info(err)
 		return
 	}
 

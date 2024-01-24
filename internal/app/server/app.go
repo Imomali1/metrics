@@ -6,40 +6,30 @@ import (
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
 	"github.com/Imomali1/metrics/internal/services"
-	stdLog "log"
 	"net/http"
 	"os"
 )
 
 func Run() {
-	// Load configurations
 	var cfg Config
 	Parse(&cfg)
-
-	// Create new logger instance
-	log, err := logger.New(os.Stdout, cfg.LogLevel)
-	if err != nil {
-		stdLog.Fatal(err)
-	}
-
-	handler := newHandler()
-	log.
-		Info().
-		Str("address", cfg.ServerAddress).
-		Msg("Running Server...")
-
-	err = http.ListenAndServe(cfg.ServerAddress, handler)
-	if err != nil {
-		log.Fatal().Err(err)
-	}
-}
-
-func newHandler() http.Handler {
+	l := logger.NewLogger(os.Stdout, cfg.LogLevel, "server")
 	memStorage := storage.New()
 	repo := repository.New(memStorage)
 	service := services.New(repo)
 	handler := api.NewRouter(api.Options{
+		Logger:         l,
 		ServiceManager: service,
 	})
-	return handler
+
+	l.Logger.Info().
+		Str("address", cfg.ServerAddress).
+		Msg("Running Server...")
+
+	err := http.ListenAndServe(cfg.ServerAddress, handler)
+	if err != nil {
+		l.Logger.Fatal().
+			Err(err).
+			Msg("Server is stopped.")
+	}
 }

@@ -6,8 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
-	"log"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 )
@@ -18,20 +19,17 @@ var (
 	currentMetrics []entity.Metrics
 )
 
-func Run() error {
-	//// Initialize Agent Logger
-	//if err := logger.InitALogger(); err != nil {
-	//	return err
-	//}
-
+func Run() {
 	// Parse agent configs
 	var cfg Config
 	Parse(&cfg)
 
+	l := logger.NewLogger(os.Stdout, cfg.LogLevel, "agent")
+
 	// Check server health
-	if !serverIsHealthy(cfg.ServerAddress) {
+	if !serverIsHealthy(l, cfg.ServerAddress) {
 		err := errors.New("please make sure that the server is up and running ")
-		return err
+		l.Logger.Fatal().Err(err).Send()
 	}
 
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
@@ -40,9 +38,9 @@ func Run() error {
 	for {
 		select {
 		case <-pollTicker.C:
-			pollMetrics()
+			pollMetrics(l)
 		case <-reportTicker.C:
-			reportMetrics(cfg.ServerAddress)
+			reportMetrics(l, cfg.ServerAddress)
 		}
 	}
 }
@@ -53,7 +51,7 @@ func floatPtr(f float64) *float64 {
 }
 
 // pollMetrics polls metrics from host that agent is running
-func pollMetrics() {
+func pollMetrics(l logger.Logger) {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
 	PollCount++
@@ -88,49 +86,51 @@ func pollMetrics() {
 		{MType: entity.Gauge, ID: "Sys", Value: floatPtr(float64(memStat.Sys))},
 		{MType: entity.Gauge, ID: "TotalAlloc", Value: floatPtr(float64(memStat.TotalAlloc))},
 	}
+	l.Logger.Info().Msg("Agent polled metrics successfully!")
 }
 
 // reportMetrics sends agent metrics to server
-func reportMetrics(serverAddress string) {
+func reportMetrics(l logger.Logger, serverAddress string) {
 	if len(currentMetrics) == 0 {
 		//logger.ALog.Info("No metrics to report.")
 		return
 	}
+	l.Logger.Info().Msg("Agent started report metrics to the server...")
 	for _, metric := range currentMetrics {
 		url := fmt.Sprintf("http://%s/update", serverAddress)
 
 		body, err := json.Marshal(metric)
 		if err != nil {
-			//logger.ALog.Error("Error in reporting metrics:", err)
+			l.Logger.Error().Err(err).Msg("Error in reporting metrics.")
 			continue
 		}
 
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 		if err != nil {
-			//logger.ALog.Error("Error in reporting metrics:", err)
+			l.Logger.Error().Err(err).Msg("Error in reporting metrics.")
 			continue
 		}
 		err = resp.Body.Close()
 		if err != nil {
-			//logger.ALog.Error("Error in closing response body", err)
+			l.Logger.Error().Err(err).Msg("Error in reporting metrics.")
 			continue
 		}
 
-		//logger.ALog.Info("Metrics reported successfully.")
+		l.Logger.Info().Str("url", url).Msg("Metrics reported successfully.")
 	}
 	currentMetrics = nil
 }
 
 // serverIsHealthy checks server health
-func serverIsHealthy(serverAddress string) bool {
+func serverIsHealthy(l logger.Logger, serverAddress string) bool {
 	url := fmt.Sprintf("http://%s/healthz", serverAddress)
 	retry, delay := 3, 3*time.Second
 
 	for i := 0; i < retry; i++ {
 		resp, err := http.Get(url)
 		if err != nil || resp.StatusCode != http.StatusOK {
-			//logger.ALog.Error(err)
-			log.Printf("Attempt #%d. Connection refused. Left %d attempts.\n", i+1, retry-i-1)
+			l.Logger.Error().Err(err).Send()
+			l.Logger.Warn().Msgf("Attempt #%d. Connection refused. Left %d attempts.\n", i+1, retry-i-1)
 			time.Sleep(delay)
 			continue
 		}

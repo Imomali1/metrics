@@ -1,30 +1,37 @@
 package middlewares
 
 import (
+	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog"
+	"time"
 )
 
-func RequestResponseLogger() gin.HandlerFunc {
+func RequestResponseLogger(l logger.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		//start := time.Now()
-		//
-		//uri := ctx.Request.RequestURI
-		//method := ctx.Request.Method
+		start := time.Now()
+
+		uri := ctx.Request.RequestURI
+		method := ctx.Request.Method
 
 		ctx.Next()
 
-		//duration := time.Since(start)
-		//
-		//logger.Log.Infow("request",
-		//	"uri", uri,
-		//	"method", method,
-		//	"duration", duration)
-		//
-		//status := ctx.Writer.Status()
-		//size := ctx.Writer.Size()
-		//
-		//logger.Log.Infow("response",
-		//	"status", status,
-		//	"size", size)
+		l.Logger.
+			Info().
+			Dict("request", zerolog.Dict().
+				Str("uri", uri).
+				Str("method", method).
+				Str("duration", time.Since(start).String()),
+			).Send()
+
+		status := ctx.Writer.Status()
+		size := ctx.Writer.Size()
+
+		l.Logger.
+			Info().
+			Dict("response", zerolog.Dict().
+				Int("status", status).
+				Int("size", size),
+			).Send()
 	}
 }

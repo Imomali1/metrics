@@ -24,7 +24,9 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (*http.
 }
 
 func NTestServer(t *testing.T) {
-	ts := httptest.NewServer(newHandler())
+	// fake mux
+	mux := http.NewServeMux()
+	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
 	var updateMetricTestCases = []struct {

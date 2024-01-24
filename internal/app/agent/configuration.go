@@ -10,23 +10,27 @@ type Config struct {
 	ServerAddress  string
 	PollInterval   int
 	ReportInterval int
+	LogLevel       string
 }
 
 const (
 	defaultServerAddress  = "localhost:8080"
 	defaultPollInterval   = 2
 	defaultReportInterval = 10
+	defaultLogLevel       = "info"
 )
 
 func Parse(cfg *Config) {
 	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
 	pollInterval := flag.Int("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
 	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
+	logLevel := flag.String("log", defaultLogLevel, "устанавливает глобальный уровень логгера")
 	flag.Parse()
 
 	cfg.ServerAddress = getEnvString("ADDRESS", *serverAddress, defaultServerAddress)
 	cfg.PollInterval = getEnvInt("POLL_INTERVAL", *pollInterval, defaultPollInterval)
 	cfg.ReportInterval = getEnvInt("REPORT_INTERVAL", *reportInterval, defaultReportInterval)
+	cfg.LogLevel = getEnvString("LOG_LEVEL", *logLevel, defaultLogLevel)
 }
 
 func getEnvString(key string, argumentValue string, defaultValue string) string {

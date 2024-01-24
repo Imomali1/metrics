@@ -13,7 +13,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	if metricType != entity.Gauge && metricType != entity.Counter {
 		//err := errors.New("invalid metric type ")
 		ctx.AbortWithStatus(http.StatusBadRequest)
-		//logger.Log.Info(err)
+		//logger.Logger.Info(err)
 		return
 	}
 
@@ -21,7 +21,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	if metricName == "" {
 		//err := errors.New("metric name is empty ")
 		ctx.AbortWithStatus(http.StatusNotFound)
-		//logger.Log.Info(err)
+		//logger.Logger.Info(err)
 		return
 	}
 
@@ -32,11 +32,11 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 		if err != nil {
 			if errors.Is(err, entity.ErrMetricNotFound) {
 				ctx.AbortWithStatus(http.StatusNotFound)
-				//logger.Log.Info(err)
+				//logger.Logger.Info(err)
 				return
 			}
 			ctx.AbortWithStatus(http.StatusInternalServerError)
-			//logger.Log.Info(err)
+			//logger.Logger.Info(err)
 			return
 		}
 		metricValue = strconv.FormatFloat(value, 'f', -1, 64)
@@ -45,11 +45,11 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 		if err != nil {
 			if errors.Is(err, entity.ErrMetricNotFound) {
 				ctx.AbortWithStatus(http.StatusNotFound)
-				//logger.Log.Info(err)
+				//logger.Logger.Info(err)
 				return
 			}
 			ctx.AbortWithStatus(http.StatusInternalServerError)
-			//logger.Log.Info(err)
+			//logger.Logger.Info(err)
 			return
 		}
 		metricValue = strconv.FormatInt(value, 10)

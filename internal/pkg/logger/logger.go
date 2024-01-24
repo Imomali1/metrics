@@ -5,17 +5,38 @@ import (
 	"io"
 )
 
-func New(writer io.Writer, level string) (zerolog.Logger, error) {
-	// Parse Log Level
+type Logger struct {
+	Logger zerolog.Logger
+}
+
+var log *Logger
+
+func initLogger(writer io.Writer, level string) zerolog.Logger {
+	// Parse Logger Level
 	lvl, err := zerolog.ParseLevel(level)
 	if err != nil {
-		return zerolog.Logger{}, err
+		lvl = zerolog.InfoLevel
 	}
 
-	// Set Global Log Level
+	// Set Global Logger Level
 	zerolog.SetGlobalLevel(lvl)
 
-	zl := zerolog.New(writer).With().Timestamp().Logger()
+	// Create Logger Instance
+	l := zerolog.New(writer).With().Timestamp().Logger()
+	log = &Logger{
+		Logger: l,
+	}
 
-	return zl, nil
+	return l
+}
+
+func NewLogger(writer io.Writer, level string, serviceName string) Logger {
+	var l zerolog.Logger
+	if log != nil {
+		l = log.Logger
+	}
+	l = initLogger(writer, level)
+	return Logger{
+		Logger: l.With().Str("service", serviceName).Logger(),
+	}
 }
