@@ -2,6 +2,8 @@ package api
 
 import (
 	"github.com/Imomali1/metrics/internal/handlers"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/Imomali1/metrics/internal/pkg/middlewares"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -11,20 +13,22 @@ type Handlers struct {
 }
 
 type Options struct {
+	Logger         logger.Logger
 	ServiceManager *services.Services
 }
 
 func NewRouter(options Options) *gin.Engine {
-	router := gin.New()
-	gin.SetMode(gin.TestMode)
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+	gin.SetMode(gin.ReleaseMode)
 
-	router.LoadHTMLGlob("static/templates/*.html")
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middlewares.ReqRespLogger(options.Logger))
 
 	h := Handlers{
-		MetricHandler: handlers.NewMetricHandler(options.ServiceManager.MetricService),
+		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager.MetricService),
 	}
+
+	router.LoadHTMLGlob("static/templates/*.html")
 
 	router.GET("/", h.MetricHandler.ListMetrics)
 	router.POST("/update/:type/:name/:value", h.MetricHandler.UpdateMetricValue)

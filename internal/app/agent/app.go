@@ -3,8 +3,9 @@ package agent
 import (
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
-	"log"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 )
@@ -19,15 +20,21 @@ func Run() {
 	var cfg Config
 	Parse(&cfg)
 
+	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
+
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
+
+	log.Logger.Info().Msg("agent is up and running...")
 
 	for {
 		select {
 		case <-pollTicker.C:
+			log.Logger.Info().Msg("polling metrics...")
 			pollMetrics()
 		case <-reportTicker.C:
-			reportMetrics(cfg.ServerAddress)
+			log.Logger.Info().Msg("reporting metrics to server...")
+			reportMetrics(log, cfg.ServerAddress)
 		}
 	}
 }
@@ -69,9 +76,9 @@ func pollMetrics() {
 	}
 }
 
-func reportMetrics(serverAddress string) {
+func reportMetrics(log logger.Logger, serverAddress string) {
 	if len(currentMetrics) == 0 {
-		log.Println("No metrics to report.")
+		log.Logger.Info().Msg("no metrics to report")
 		return
 	}
 	for _, metric := range currentMetrics {
@@ -82,17 +89,21 @@ func reportMetrics(serverAddress string) {
 		case entity.Gauge:
 			url = fmt.Sprintf("%s%f", url, metric.ValueGauge)
 		default:
-			log.Println("Invalid metric type: ", metric.Type)
+			log.Logger.Info().Msgf("invalid metric type: %s", metric.Type)
 			continue
 		}
 		resp, err := http.Post(url, "text/plain", nil)
 		if err != nil {
-			log.Println("Error in reporting metrics:", err)
+			log.Logger.Info().Err(err).Msg("error in reporting metrics")
 			continue
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			log.Logger.Info().Err(err).Msg("error in closing response body")
+			continue
+		}
 
-		log.Println("Metrics reported successfully.")
+		log.Logger.Info().Msg("metrics reported successfully")
 	}
 	currentMetrics = nil
 }

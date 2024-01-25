@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
 )
 
 type IMetricService interface {
@@ -13,11 +14,13 @@ type IMetricService interface {
 }
 
 type MetricHandler struct {
+	log            logger.Logger
 	serviceManager IMetricService
 }
 
-func NewMetricHandler(sm IMetricService) *MetricHandler {
+func NewMetricHandler(log logger.Logger, sm IMetricService) *MetricHandler {
 	return &MetricHandler{
+		log:            log,
 		serviceManager: sm,
 	}
 }
