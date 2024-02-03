@@ -31,8 +31,8 @@ func NewRouter(options Options) *gin.Engine {
 	router.LoadHTMLGlob("static/templates/*.html")
 
 	router.GET("/", h.MetricHandler.ListMetrics)
-	//router.POST("/update/:type/:name/:value", h.MetricHandler.UpdateMetricValue)
-	//router.GET("/value/:type/:name", h.MetricHandler.GetMetricValueByName)
+	router.POST("/update/:type/:name/:value", h.MetricHandler.UpdateMetricValue)
+	router.GET("/value/:type/:name", h.MetricHandler.GetMetricValueByName)
 	router.POST("/update", h.MetricHandler.UpdateMetricValueJSON)
 	router.GET("/value", h.MetricHandler.GetMetricValueByNameJSON)
 
