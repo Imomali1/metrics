@@ -35,8 +35,8 @@ func Run() {
 			log.Logger.Info().Msg("polling metrics...")
 			pollMetrics()
 		case <-reportTicker.C:
-			log.Logger.Info().Msg("reporting metrics to server/v1...")
-			reportMetricsV1(log, cfg.ServerAddress)
+			//log.Logger.Info().Msg("reporting metrics to server/v1...")
+			//reportMetricsV1(log, cfg.ServerAddress)
 			log.Logger.Info().Msg("reporting metrics to server/v2...")
 			reportMetricsV2(log, cfg.ServerAddress)
 		}
