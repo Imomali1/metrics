@@ -31,7 +31,7 @@ func (s *metricService) GetGaugeValue(name string) (float64, error) {
 	return value, err
 }
 
-func (s *metricService) ListMetrics() ([]entity.Metrics, error) {
+func (s *metricService) ListMetrics() ([]entity.MetricsWithoutPointer, error) {
 	allMetrics, err := s.repo.ListMetrics()
 	return allMetrics, err
 }

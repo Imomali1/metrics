@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-var (
-	PollCount      int64
-	RandomValue    float64 = 123.0
-	currentMetrics []entity.Metrics
-)
+type Metrics struct {
+	PollCount   int64
+	RandomValue float64
+	Arr         []entity.Metrics
+}
 
 func Run() {
 	var cfg Config
@@ -27,29 +27,33 @@ func Run() {
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
 
+	metrics := Metrics{
+		RandomValue: 123.0,
+	}
+
 	log.Logger.Info().Msg("agent is up and running...")
 
 	for {
 		select {
 		case <-pollTicker.C:
 			log.Logger.Info().Msg("polling metrics...")
-			pollMetrics()
+			pollMetrics(&metrics)
 		case <-reportTicker.C:
-			//log.Logger.Info().Msg("reporting metrics to server/v1...")
-			//reportMetricsV1(log, cfg.ServerAddress)
+			log.Logger.Info().Msg("reporting metrics to server/v1...")
+			reportMetricsV1(log, cfg.ServerAddress, &metrics)
 			log.Logger.Info().Msg("reporting metrics to server/v2...")
-			reportMetricsV2(log, cfg.ServerAddress)
+			reportMetricsV2(log, cfg.ServerAddress, &metrics)
 		}
 	}
 }
 
-func pollMetrics() {
+func pollMetrics(metrics *Metrics) {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
-	PollCount++
-	currentMetrics = []entity.Metrics{
-		{MType: entity.Counter, ID: "PollCount", Delta: &PollCount},
-		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(RandomValue)},
+	metrics.PollCount++
+	metrics.Arr = []entity.Metrics{
+		{MType: entity.Counter, ID: "PollCount", Delta: &metrics.PollCount},
+		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(metrics.RandomValue)},
 		{MType: entity.Gauge, ID: "Alloc", Value: floatPtr(float64(memStat.Alloc))},
 		{MType: entity.Gauge, ID: "BuckHashSys", Value: floatPtr(float64(memStat.BuckHashSys))},
 		{MType: entity.Gauge, ID: "Frees", Value: floatPtr(float64(memStat.Frees))},
@@ -84,12 +88,12 @@ func floatPtr(f float64) *float64 {
 	return &f
 }
 
-func reportMetricsV1(log logger.Logger, serverAddress string) {
-	if len(currentMetrics) == 0 {
+func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) {
+	if len(metrics.Arr) == 0 {
 		log.Logger.Info().Msg("no metrics to report")
 		return
 	}
-	for _, metric := range currentMetrics {
+	for _, metric := range metrics.Arr {
 		url := fmt.Sprintf("http://%s/update/%s/%s/", serverAddress, metric.MType, metric.ID)
 		switch metric.MType {
 		case entity.Counter:
@@ -113,16 +117,16 @@ func reportMetricsV1(log logger.Logger, serverAddress string) {
 
 		log.Logger.Info().Msg("metrics reported successfully")
 	}
-	//currentMetrics = nil
+	//metrics.Arr = nil
 }
 
-func reportMetricsV2(log logger.Logger, serverAddress string) {
-	if len(currentMetrics) == 0 {
+func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) {
+	if len(metrics.Arr) == 0 {
 		log.Logger.Info().Msg("no metrics to report")
 		return
 	}
-	for _, metric := range currentMetrics {
-		url := fmt.Sprintf("http://%s/update", serverAddress)
+	for _, metric := range metrics.Arr {
+		url := fmt.Sprintf("http://%s/update/", serverAddress)
 		body, err := easyjson.Marshal(metric)
 		if err != nil {
 			log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
@@ -141,5 +145,5 @@ func reportMetricsV2(log logger.Logger, serverAddress string) {
 
 		log.Logger.Info().Msg("metrics reported successfully")
 	}
-	currentMetrics = nil
+	metrics.Arr = nil
 }

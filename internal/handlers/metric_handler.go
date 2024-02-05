@@ -10,7 +10,7 @@ type IMetricService interface {
 	UpdateGauge(name string, gauge float64) error
 	GetCounterValue(name string) (int64, error)
 	GetGaugeValue(name string) (float64, error)
-	ListMetrics() ([]entity.Metrics, error)
+	ListMetrics() ([]entity.MetricsWithoutPointer, error)
 }
 
 type MetricHandler struct {

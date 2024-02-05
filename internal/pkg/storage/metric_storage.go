@@ -42,21 +42,21 @@ func (s *metricStorage) GetGaugeValue(name string) (float64, error) {
 	return value, nil
 }
 
-func (s *metricStorage) ListMetrics() ([]entity.Metrics, error) {
-	allMetrics := make([]entity.Metrics, 0)
-	for name, value := range s.counterStorage {
-		allMetrics = append(allMetrics, entity.Metrics{
+func (s *metricStorage) ListMetrics() ([]entity.MetricsWithoutPointer, error) {
+	allMetrics := make([]entity.MetricsWithoutPointer, 0)
+	for name, delta := range s.counterStorage {
+		allMetrics = append(allMetrics, entity.MetricsWithoutPointer{
 			MType: entity.Counter,
 			ID:    name,
-			Delta: &value,
+			Delta: delta,
 		})
 	}
 
 	for name, value := range s.gaugeStorage {
-		allMetrics = append(allMetrics, entity.Metrics{
+		allMetrics = append(allMetrics, entity.MetricsWithoutPointer{
 			MType: entity.Gauge,
 			ID:    name,
-			Value: &value,
+			Value: value,
 		})
 	}
 

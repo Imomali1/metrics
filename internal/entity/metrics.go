@@ -9,6 +9,13 @@ type Metrics struct {
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
+type MetricsWithoutPointer struct {
+	ID    string
+	MType string
+	Delta int64
+	Value float64
+}
+
 const (
 	// Gauge Counter are metric types
 	Gauge   = "gauge"

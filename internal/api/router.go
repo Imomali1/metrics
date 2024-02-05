@@ -31,10 +31,24 @@ func NewRouter(options Options) *gin.Engine {
 	router.LoadHTMLGlob("static/templates/*.html")
 
 	router.GET("/", h.MetricHandler.ListMetrics)
-	router.POST("/update/:type/:name/:value", h.MetricHandler.UpdateMetricValue)
-	router.GET("/value/:type/:name", h.MetricHandler.GetMetricValueByName)
-	router.POST("/update", h.MetricHandler.UpdateMetricValueJSON)
-	router.GET("/value", h.MetricHandler.GetMetricValueByNameJSON)
+
+	updateRoutes := router.Group("/update")
+	{
+		// v1 update handler using URI
+		updateRoutes.POST("/:type/:name/:value", h.MetricHandler.UpdateMetricValue)
+
+		// v2 update handler using JSON
+		updateRoutes.POST("/", h.MetricHandler.UpdateMetricValueJSON)
+	}
+
+	getValueRoutes := router.Group("/value")
+	{
+		// v1 get value handler using URI
+		getValueRoutes.GET("/:type/:name", h.MetricHandler.GetMetricValueByName)
+
+		// v2 get value handler using JSON
+		getValueRoutes.GET("/", h.MetricHandler.GetMetricValueByNameJSON)
+	}
 
 	return router
 }

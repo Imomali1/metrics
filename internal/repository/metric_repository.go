@@ -33,7 +33,7 @@ func (r *metricRepository) GetGaugeValue(name string) (float64, error) {
 	return value, err
 }
 
-func (r *metricRepository) ListMetrics() ([]entity.Metrics, error) {
+func (r *metricRepository) ListMetrics() ([]entity.MetricsWithoutPointer, error) {
 	allMetrics, err := r.memStorage.ListMetrics()
 	return allMetrics, err
 }
