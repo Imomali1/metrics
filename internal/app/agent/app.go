@@ -2,9 +2,11 @@ package agent
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/go-resty/resty/v2"
 	"github.com/mailru/easyjson"
 	"math/rand"
 	"net/http"
@@ -38,8 +40,8 @@ func Run() {
 			log.Logger.Info().Msg("polling metrics...")
 			pollMetrics(metrics)
 		case <-reportTicker.C:
-			log.Logger.Info().Msg("reporting metrics to server/v1...")
-			reportMetricsV1(log, cfg.ServerAddress, metrics)
+			//log.Logger.Info().Msg("reporting metrics to server/v1...")
+			//reportMetricsV1(log, cfg.ServerAddress, metrics)
 			log.Logger.Info().Msg("reporting metrics to server/v2...")
 			reportMetricsV2(log, cfg.ServerAddress, metrics)
 		}
@@ -125,21 +127,33 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 		log.Logger.Info().Msg("no metrics to report")
 		return
 	}
+	client := resty.New().
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Content-Type", "application/json")
+	url := fmt.Sprintf("http://%s/update/", serverAddress)
 	for _, metric := range metrics.Arr {
-		url := fmt.Sprintf("http://%s/update/", serverAddress)
 		body, err := easyjson.Marshal(metric)
 		if err != nil {
 			log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
 			continue
 		}
-		resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+		var buf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&buf)
+		_, err = gzipWriter.Write(body)
 		if err != nil {
-			log.Logger.Info().Err(err).Msg("error in reporting metrics")
+			log.Logger.Info().Err(err).Msg("cannot compress body")
 			continue
 		}
-		err = resp.Body.Close()
+		err = gzipWriter.Close()
 		if err != nil {
-			log.Logger.Info().Err(err).Msg("error in closing response body")
+			log.Logger.Info().Err(err).Msg("cannot close gzip writer")
+			continue
+		}
+		_, err = client.R().
+			SetBody(buf.Bytes()).
+			Post(url)
+		if err != nil {
+			log.Logger.Info().Err(err).Msg("error in making request")
 			continue
 		}
 

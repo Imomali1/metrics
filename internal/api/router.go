@@ -23,6 +23,7 @@ func NewRouter(options Options) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middlewares.ReqRespLogger(options.Logger))
+	router.Use(middlewares.CompressResponse(), middlewares.DecompressRequest())
 
 	h := Handlers{
 		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager.MetricService),
