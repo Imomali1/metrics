@@ -6,6 +6,7 @@ import (
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/mailru/easyjson"
+	"math/rand"
 	"net/http"
 	"os"
 	"runtime"
@@ -13,10 +14,10 @@ import (
 )
 
 type Metrics struct {
-	PollCount   int64
-	RandomValue float64
-	Arr         []entity.Metrics
+	Arr []entity.Metrics
 }
+
+var PollCount int64
 
 func Run() {
 	var cfg Config
@@ -27,9 +28,7 @@ func Run() {
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
 
-	metrics := Metrics{
-		RandomValue: 123.0,
-	}
+	metrics := new(Metrics)
 
 	log.Logger.Info().Msg("agent is up and running...")
 
@@ -37,12 +36,12 @@ func Run() {
 		select {
 		case <-pollTicker.C:
 			log.Logger.Info().Msg("polling metrics...")
-			pollMetrics(&metrics)
+			pollMetrics(metrics)
 		case <-reportTicker.C:
 			log.Logger.Info().Msg("reporting metrics to server/v1...")
-			reportMetricsV1(log, cfg.ServerAddress, &metrics)
+			reportMetricsV1(log, cfg.ServerAddress, metrics)
 			log.Logger.Info().Msg("reporting metrics to server/v2...")
-			reportMetricsV2(log, cfg.ServerAddress, &metrics)
+			reportMetricsV2(log, cfg.ServerAddress, metrics)
 		}
 	}
 }
@@ -50,10 +49,11 @@ func Run() {
 func pollMetrics(metrics *Metrics) {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
-	metrics.PollCount++
+	PollCount++
+	RandomValue := rand.NormFloat64()
 	metrics.Arr = []entity.Metrics{
-		{MType: entity.Counter, ID: "PollCount", Delta: &metrics.PollCount},
-		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(metrics.RandomValue)},
+		{MType: entity.Counter, ID: "PollCount", Delta: &PollCount},
+		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(RandomValue)},
 		{MType: entity.Gauge, ID: "Alloc", Value: floatPtr(float64(memStat.Alloc))},
 		{MType: entity.Gauge, ID: "BuckHashSys", Value: floatPtr(float64(memStat.BuckHashSys))},
 		{MType: entity.Gauge, ID: "Frees", Value: floatPtr(float64(memStat.Frees))},
