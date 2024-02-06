@@ -47,7 +47,7 @@ func NewRouter(options Options) *gin.Engine {
 		getValueRoutes.GET("/:type/:name", h.MetricHandler.GetMetricValueByName)
 
 		// v2 get value handler using JSON
-		getValueRoutes.GET("/", h.MetricHandler.GetMetricValueByNameJSON)
+		getValueRoutes.POST("/", h.MetricHandler.GetMetricValueByNameJSON)
 	}
 
 	return router
