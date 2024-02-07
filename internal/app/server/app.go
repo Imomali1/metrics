@@ -6,21 +6,10 @@ import (
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
 	"github.com/Imomali1/metrics/internal/services"
-	"github.com/gin-gonic/gin"
+	"github.com/Imomali1/metrics/internal/tasks/file_storage"
 	"net/http"
 	"os"
 )
-
-func newHandler(log logger.Logger) *gin.Engine {
-	memStorage := storage.NewStorage()
-	repo := repository.New(memStorage)
-	service := services.New(repo)
-	handler := api.NewRouter(api.Options{
-		Logger:         log,
-		ServiceManager: service,
-	})
-	return handler
-}
 
 func Run() {
 	var cfg Config
@@ -28,9 +17,16 @@ func Run() {
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
 
-	handler := newHandler(log)
+	memStorage := storage.NewStorage()
+	repo := repository.New(memStorage)
+	service := services.New(repo)
+	handler := api.NewRouter(api.Options{
+		Logger:         log,
+		ServiceManager: service,
+	})
 
-	log.Logger.Info().Msgf("server is up and listening on address: %s", cfg.ServerAddress)
+	go file_storage.RunTask(memStorage.MetricStorage)
+
 	err := http.ListenAndServe(cfg.ServerAddress, handler)
 	if err != nil {
 		log.Logger.
