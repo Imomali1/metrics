@@ -14,7 +14,9 @@ type Storage struct {
 }
 
 func NewStorage(opts ...OptionsStorage) (*Storage, error) {
-	s := &Storage{}
+	s := &Storage{
+		Memory: newMemoryStorage(),
+	}
 	for _, opt := range opts {
 		err := opt(s)
 		if err != nil {
@@ -29,7 +31,7 @@ type OptionsStorage func(s *Storage) error
 func WithFileStorage(path string) OptionsStorage {
 	return func(s *Storage) error {
 		var err error
-		s.File, err = newFileStorage(path, s)
+		s.File, err = newFileStorage(path)
 		if err != nil {
 			return err
 		}
@@ -45,16 +47,21 @@ func RestoreFile(filename string) OptionsStorage {
 			return err
 		}
 
+		defer file.Close()
+
 		scanner := bufio.NewScanner(file)
-		if !scanner.Scan() {
-			return scanner.Err()
+
+		var metrics entity.MetricsList
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			var metric entity.Metrics
+			if err = easyjson.Unmarshal(line, &metric); err != nil {
+				return err
+			}
+			metrics = append(metrics, metric)
 		}
 
-		data := scanner.Bytes()
-
-		var metrics entity.MetricsWithoutPointerList
-		err = easyjson.Unmarshal(data, &metrics)
-		if err != nil {
+		if err = scanner.Err(); err != nil {
 			return err
 		}
 
@@ -63,9 +70,9 @@ func RestoreFile(filename string) OptionsStorage {
 
 		for _, m := range metrics {
 			if m.MType == entity.Gauge {
-				gaugeMap[m.ID] = m.Value
+				gaugeMap[m.ID] = *m.Value
 			} else if m.MType == entity.Counter {
-				counterMap[m.ID] = m.Delta
+				counterMap[m.ID] = *m.Delta
 			}
 		}
 

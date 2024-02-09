@@ -13,44 +13,40 @@ type FileStorage interface {
 }
 
 type fileStorage struct {
-	metricStorage *Storage
-	file          *os.File
-	writer        *bufio.Writer
+	file   *os.File
+	writer *bufio.Writer
 }
 
-func newFileStorage(path string, metricStorage *Storage) (*fileStorage, error) {
+func newFileStorage(path string) (*fileStorage, error) {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
 
 	return &fileStorage{
-		metricStorage: metricStorage,
-		file:          file,
-		writer:        bufio.NewWriter(file),
+		file:   file,
+		writer: bufio.NewWriter(file),
 	}, nil
 }
 
 func (f *fileStorage) WriteCounter(name string, delta int64) error {
-	metrics, err := f.metricStorage.Memory.ListMetrics()
-	if err != nil {
-		return err
-	}
-
-	metrics = append(metrics, entity.Metrics{
+	metric := entity.Metrics{
 		ID:    name,
 		MType: entity.Counter,
 		Delta: &delta,
-	})
+	}
 
-	var data []byte
-	data, err = easyjson.Marshal(metrics)
+	data, err := easyjson.Marshal(metric)
 	if err != nil {
 		return err
 	}
 
 	_, err = f.writer.Write(data)
 	if err != nil {
+		return err
+	}
+
+	if err = f.writer.WriteByte('\n'); err != nil {
 		return err
 	}
 
@@ -58,25 +54,23 @@ func (f *fileStorage) WriteCounter(name string, delta int64) error {
 }
 
 func (f *fileStorage) WriteGauge(name string, value float64) error {
-	metrics, err := f.metricStorage.Memory.ListMetrics()
-	if err != nil {
-		return err
-	}
-
-	metrics = append(metrics, entity.Metrics{
+	metric := entity.Metrics{
 		ID:    name,
 		MType: entity.Gauge,
 		Value: &value,
-	})
+	}
 
-	var data []byte
-	data, err = easyjson.Marshal(metrics)
+	data, err := easyjson.Marshal(metric)
 	if err != nil {
 		return err
 	}
 
 	_, err = f.writer.Write(data)
 	if err != nil {
+		return err
+	}
+
+	if err = f.writer.WriteByte('\n'); err != nil {
 		return err
 	}
 

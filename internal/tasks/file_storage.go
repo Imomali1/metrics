@@ -54,14 +54,20 @@ func (fw *FileWriter) WriteAllMetrics(storage *store.Storage) error {
 	}
 
 	var data []byte
-	data, err = easyjson.Marshal(metrics)
-	if err != nil {
-		return err
-	}
+	for _, metric := range metrics {
+		data, err = easyjson.Marshal(metric)
+		if err != nil {
+			return err
+		}
 
-	_, err = fw.writer.Write(data)
-	if err != nil {
-		return err
+		_, err = fw.writer.Write(data)
+		if err != nil {
+			return err
+		}
+
+		if err = fw.writer.WriteByte('\n'); err != nil {
+			return err
+		}
 	}
 
 	return fw.writer.Flush()
