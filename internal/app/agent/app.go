@@ -9,7 +9,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/mailru/easyjson"
 	"math/rand"
-	"net/http"
 	"os"
 	"runtime"
 	"time"
@@ -90,37 +89,37 @@ func floatPtr(f float64) *float64 {
 	return &f
 }
 
-func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) {
-	if len(metrics.Arr) == 0 {
-		log.Logger.Info().Msg("no metrics to report")
-		return
-	}
-	for _, metric := range metrics.Arr {
-		url := fmt.Sprintf("http://%s/update/%s/%s/", serverAddress, metric.MType, metric.ID)
-		switch metric.MType {
-		case entity.Counter:
-			url = fmt.Sprintf("%s%d", url, *metric.Delta)
-		case entity.Gauge:
-			url = fmt.Sprintf("%s%f", url, *metric.Value)
-		default:
-			log.Logger.Info().Msgf("invalid metric type: %s", metric.MType)
-			continue
-		}
-		resp, err := http.Post(url, "text/plain", nil)
-		if err != nil {
-			log.Logger.Info().Err(err).Msg("error in reporting metrics")
-			continue
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			log.Logger.Info().Err(err).Msg("error in closing response body")
-			continue
-		}
-
-		log.Logger.Info().Msg("metrics reported successfully")
-	}
-	//metrics.Arr = nil
-}
+//func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) {
+//	if len(metrics.Arr) == 0 {
+//		log.Logger.Info().Msg("no metrics to report")
+//		return
+//	}
+//	for _, metric := range metrics.Arr {
+//		url := fmt.Sprintf("http://%s/update/%s/%s/", serverAddress, metric.MType, metric.ID)
+//		switch metric.MType {
+//		case entity.Counter:
+//			url = fmt.Sprintf("%s%d", url, *metric.Delta)
+//		case entity.Gauge:
+//			url = fmt.Sprintf("%s%f", url, *metric.Value)
+//		default:
+//			log.Logger.Info().Msgf("invalid metric type: %s", metric.MType)
+//			continue
+//		}
+//		resp, err := http.Post(url, "text/plain", nil)
+//		if err != nil {
+//			log.Logger.Info().Err(err).Msg("error in reporting metrics")
+//			continue
+//		}
+//		err = resp.Body.Close()
+//		if err != nil {
+//			log.Logger.Info().Err(err).Msg("error in closing response body")
+//			continue
+//		}
+//
+//		log.Logger.Info().Msg("metrics reported successfully")
+//	}
+//	//metrics.Arr = nil
+//}
 
 func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) {
 	if len(metrics.Arr) == 0 {

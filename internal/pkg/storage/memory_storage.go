@@ -74,8 +74,7 @@ func (s *memoryStorage) ListMetrics() (entity.MetricsList, error) {
 	allMetrics := make(entity.MetricsList, len(s.counterStorage)+len(s.gaugeStorage))
 	idx := 0
 	for name, delta := range s.counterStorage {
-		var tmp int64
-		tmp = delta
+		tmp := delta
 		allMetrics[idx] = entity.Metrics{
 			MType: entity.Counter,
 			ID:    name,
@@ -85,8 +84,7 @@ func (s *memoryStorage) ListMetrics() (entity.MetricsList, error) {
 	}
 
 	for name, value := range s.gaugeStorage {
-		var tmp float64
-		tmp = value
+		tmp := value
 		allMetrics[idx] = entity.Metrics{
 			MType: entity.Gauge,
 			ID:    name,
