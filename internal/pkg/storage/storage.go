@@ -77,11 +77,11 @@ func RestoreFile(filename string) OptionsStorage {
 		}
 
 		var options []OptionsMemoryStorage
-		if gaugeMap != nil {
+		if len(gaugeMap) != 0 {
 			options = append(options, WithGaugeMap(gaugeMap))
 		}
 
-		if counterMap != nil {
+		if len(counterMap) != 0 {
 			options = append(options, WithCounterMap(counterMap))
 		}
 
