@@ -38,16 +38,16 @@ func (r *metricRepository) UpdateGauge(name string, gauge float64) error {
 }
 
 func (r *metricRepository) GetCounterValue(name string) (int64, error) {
-	value, err := r.storage.GetCounterValue(name)
+	value, err := r.storage.Memory.GetCounterValue(name)
 	return value, err
 }
 
 func (r *metricRepository) GetGaugeValue(name string) (float64, error) {
-	value, err := r.storage.GetGaugeValue(name)
+	value, err := r.storage.Memory.GetGaugeValue(name)
 	return value, err
 }
 
-func (r *metricRepository) ListMetrics() (entity.MetricsWithoutPointerList, error) {
-	allMetrics, err := r.storage.ListMetrics()
+func (r *metricRepository) ListMetrics() (entity.MetricsList, error) {
+	allMetrics, err := r.storage.Memory.ListMetrics()
 	return allMetrics, err
 }

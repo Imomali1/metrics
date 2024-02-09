@@ -30,12 +30,9 @@ func WithFileStorage(path string) OptionsStorage {
 	return func(s *Storage) error {
 		var err error
 		s.File, err = newFileStorage(path, s)
-		return err
-	}
-}
-
-func SyncWriteFile() OptionsStorage {
-	return func(s *Storage) error {
+		if err != nil {
+			return err
+		}
 		s.SyncWriteFile = true
 		return nil
 	}

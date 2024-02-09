@@ -9,7 +9,7 @@ type MemoryStorage interface {
 	UpdateGauge(name string, gauge float64) error
 	GetCounterValue(name string) (int64, error)
 	GetGaugeValue(name string) (float64, error)
-	ListMetrics() (entity.MetricsWithoutPointerList, error)
+	ListMetrics() (entity.MetricsList, error)
 }
 
 type memoryStorage struct {
@@ -70,22 +70,29 @@ func (s *memoryStorage) GetGaugeValue(name string) (float64, error) {
 	return value, nil
 }
 
-func (s *memoryStorage) ListMetrics() (entity.MetricsWithoutPointerList, error) {
-	allMetrics := make(entity.MetricsWithoutPointerList, 0)
+func (s *memoryStorage) ListMetrics() (entity.MetricsList, error) {
+	allMetrics := make(entity.MetricsList, len(s.counterStorage)+len(s.gaugeStorage))
+	idx := 0
 	for name, delta := range s.counterStorage {
-		allMetrics = append(allMetrics, entity.MetricsWithoutPointer{
+		var tmp int64
+		tmp = delta
+		allMetrics[idx] = entity.Metrics{
 			MType: entity.Counter,
 			ID:    name,
-			Delta: delta,
-		})
+			Delta: &tmp,
+		}
+		idx++
 	}
 
 	for name, value := range s.gaugeStorage {
-		allMetrics = append(allMetrics, entity.MetricsWithoutPointer{
+		var tmp float64
+		tmp = value
+		allMetrics[idx] = entity.Metrics{
 			MType: entity.Gauge,
 			ID:    name,
-			Value: value,
-		})
+			Value: &tmp,
+		}
+		idx++
 	}
 
 	return allMetrics, nil

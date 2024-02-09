@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/mailru/easyjson"
 	"os"
 )
@@ -9,7 +10,6 @@ import (
 type FileStorage interface {
 	WriteCounter(name string, delta int64) error
 	WriteGauge(name string, value float64) error
-	WriteAllMetrics() error
 }
 
 type fileStorage struct {
@@ -32,18 +32,16 @@ func newFileStorage(path string, metricStorage *Storage) (*fileStorage, error) {
 }
 
 func (f *fileStorage) WriteCounter(name string, delta int64) error {
-
-}
-
-func (f *fileStorage) WriteGauge(name string, value float64) error {
-
-}
-
-func (f *fileStorage) WriteAllMetrics() error {
-	metrics, err := f.metricStorage.ListMetrics()
+	metrics, err := f.metricStorage.Memory.ListMetrics()
 	if err != nil {
 		return err
 	}
+
+	metrics = append(metrics, entity.Metrics{
+		ID:    name,
+		MType: entity.Counter,
+		Delta: &delta,
+	})
 
 	var data []byte
 	data, err = easyjson.Marshal(metrics)
@@ -51,7 +49,34 @@ func (f *fileStorage) WriteAllMetrics() error {
 		return err
 	}
 
-	if _, err = f.writer.Write(data); err != nil {
+	_, err = f.writer.Write(data)
+	if err != nil {
+		return err
+	}
+
+	return f.writer.Flush()
+}
+
+func (f *fileStorage) WriteGauge(name string, value float64) error {
+	metrics, err := f.metricStorage.Memory.ListMetrics()
+	if err != nil {
+		return err
+	}
+
+	metrics = append(metrics, entity.Metrics{
+		ID:    name,
+		MType: entity.Gauge,
+		Value: &value,
+	})
+
+	var data []byte
+	data, err = easyjson.Marshal(metrics)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.writer.Write(data)
+	if err != nil {
 		return err
 	}
 

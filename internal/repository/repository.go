@@ -10,7 +10,7 @@ type MetricRepository interface {
 	UpdateGauge(name string, gauge float64) error
 	GetCounterValue(name string) (int64, error)
 	GetGaugeValue(name string) (float64, error)
-	ListMetrics() (entity.MetricsWithoutPointerList, error)
+	ListMetrics() (entity.MetricsList, error)
 }
 
 type Repository struct {
