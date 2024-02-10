@@ -39,23 +39,23 @@ func WithGaugeMap(gaugeMap map[string]float64) OptionsMemoryStorage {
 }
 
 func (s *memoryStorage) UpdateCounter(name string, counter int64) error {
-	s.mu.Unlock()
-	s.counterStorage[name] += counter
 	s.mu.Lock()
+	s.counterStorage[name] += counter
+	s.mu.Unlock()
 	return nil
 }
 
 func (s *memoryStorage) UpdateGauge(name string, gauge float64) error {
-	s.mu.Unlock()
-	s.gaugeStorage[name] = gauge
 	s.mu.Lock()
+	s.gaugeStorage[name] = gauge
+	s.mu.Unlock()
 	return nil
 }
 
 func (s *memoryStorage) GetCounterValue(name string) (int64, error) {
-	s.mu.RUnlock()
-	value, ok := s.counterStorage[name]
 	s.mu.RLock()
+	value, ok := s.counterStorage[name]
+	s.mu.RUnlock()
 	if !ok {
 		return 0, entity.ErrMetricNotFound
 	}
@@ -63,9 +63,9 @@ func (s *memoryStorage) GetCounterValue(name string) (int64, error) {
 }
 
 func (s *memoryStorage) GetGaugeValue(name string) (float64, error) {
-	s.mu.RUnlock()
-	value, ok := s.gaugeStorage[name]
 	s.mu.RLock()
+	value, ok := s.gaugeStorage[name]
+	s.mu.RUnlock()
 	if !ok {
 		return 0, entity.ErrMetricNotFound
 	}
@@ -75,7 +75,7 @@ func (s *memoryStorage) GetGaugeValue(name string) (float64, error) {
 func (s *memoryStorage) ListMetrics() (entity.MetricsList, error) {
 	allMetrics := make(entity.MetricsList, len(s.counterStorage)+len(s.gaugeStorage))
 	idx := 0
-	s.mu.RUnlock()
+	s.mu.RLock()
 	for name, delta := range s.counterStorage {
 		tmp := delta
 		allMetrics[idx] = entity.Metrics{
@@ -95,7 +95,7 @@ func (s *memoryStorage) ListMetrics() (entity.MetricsList, error) {
 		}
 		idx++
 	}
-	s.mu.RLock()
+	s.mu.RUnlock()
 
 	return allMetrics, nil
 }

@@ -51,8 +51,8 @@ func pollMetrics(metrics *Metrics) {
 	runtime.ReadMemStats(&memStat)
 	metrics.PollCount++
 	RandomValue := rand.NormFloat64()
-	metrics.mu.Unlock()
-	defer metrics.mu.Lock()
+	metrics.mu.Lock()
+	defer metrics.mu.Unlock()
 	metrics.Arr = []entity.Metrics{
 		{MType: entity.Counter, ID: "PollCount", Delta: &metrics.PollCount},
 		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(RandomValue)},
@@ -99,7 +99,7 @@ func reportMetrics(log logger.Logger, serverAddress string, metrics *Metrics) {
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Content-Type", "application/json")
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
-	metrics.mu.RUnlock()
+	metrics.mu.RLock()
 	for _, metric := range metrics.Arr {
 		body, err := easyjson.Marshal(metric)
 		if err != nil {
@@ -128,9 +128,9 @@ func reportMetrics(log logger.Logger, serverAddress string, metrics *Metrics) {
 
 		log.Logger.Info().Msg("metrics reported successfully")
 	}
-	metrics.mu.RLock()
+	metrics.mu.RUnlock()
 
-	metrics.mu.Unlock()
-	metrics.Arr = nil
 	metrics.mu.Lock()
+	metrics.Arr = nil
+	metrics.mu.Unlock()
 }
