@@ -11,14 +11,15 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 )
 
 type Metrics struct {
-	Arr []entity.Metrics
+	PollCount int64
+	Arr       []entity.Metrics
+	mu        sync.RWMutex
 }
-
-var PollCount int64
 
 func Run() {
 	var cfg Config
@@ -39,10 +40,8 @@ func Run() {
 			log.Logger.Info().Msg("polling metrics...")
 			pollMetrics(metrics)
 		case <-reportTicker.C:
-			//log.Logger.Info().Msg("reporting metrics to server/v1...")
-			//reportMetricsV1(log, cfg.ServerAddress, metrics)
 			log.Logger.Info().Msg("reporting metrics to server/v2...")
-			reportMetricsV2(log, cfg.ServerAddress, metrics)
+			reportMetrics(log, cfg.ServerAddress, metrics)
 		}
 	}
 }
@@ -50,10 +49,12 @@ func Run() {
 func pollMetrics(metrics *Metrics) {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
-	PollCount++
+	metrics.PollCount++
 	RandomValue := rand.NormFloat64()
+	metrics.mu.Unlock()
+	defer metrics.mu.Lock()
 	metrics.Arr = []entity.Metrics{
-		{MType: entity.Counter, ID: "PollCount", Delta: &PollCount},
+		{MType: entity.Counter, ID: "PollCount", Delta: &metrics.PollCount},
 		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(RandomValue)},
 		{MType: entity.Gauge, ID: "Alloc", Value: floatPtr(float64(memStat.Alloc))},
 		{MType: entity.Gauge, ID: "BuckHashSys", Value: floatPtr(float64(memStat.BuckHashSys))},
@@ -89,39 +90,7 @@ func floatPtr(f float64) *float64 {
 	return &f
 }
 
-//func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) {
-//	if len(metrics.Arr) == 0 {
-//		log.Logger.Info().Msg("no metrics to report")
-//		return
-//	}
-//	for _, metric := range metrics.Arr {
-//		url := fmt.Sprintf("http://%s/update/%s/%s/", serverAddress, metric.MType, metric.ID)
-//		switch metric.MType {
-//		case entity.Counter:
-//			url = fmt.Sprintf("%s%d", url, *metric.Delta)
-//		case entity.Gauge:
-//			url = fmt.Sprintf("%s%f", url, *metric.Value)
-//		default:
-//			log.Logger.Info().Msgf("invalid metric type: %s", metric.MType)
-//			continue
-//		}
-//		resp, err := http.Post(url, "text/plain", nil)
-//		if err != nil {
-//			log.Logger.Info().Err(err).Msg("error in reporting metrics")
-//			continue
-//		}
-//		err = resp.Body.Close()
-//		if err != nil {
-//			log.Logger.Info().Err(err).Msg("error in closing response body")
-//			continue
-//		}
-//
-//		log.Logger.Info().Msg("metrics reported successfully")
-//	}
-//	//metrics.Arr = nil
-//}
-
-func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) {
+func reportMetrics(log logger.Logger, serverAddress string, metrics *Metrics) {
 	if len(metrics.Arr) == 0 {
 		log.Logger.Info().Msg("no metrics to report")
 		return
@@ -130,6 +99,7 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Content-Type", "application/json")
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
+	metrics.mu.RUnlock()
 	for _, metric := range metrics.Arr {
 		body, err := easyjson.Marshal(metric)
 		if err != nil {
@@ -158,5 +128,9 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 
 		log.Logger.Info().Msg("metrics reported successfully")
 	}
+	metrics.mu.RLock()
+
+	metrics.mu.Unlock()
 	metrics.Arr = nil
+	metrics.mu.Lock()
 }

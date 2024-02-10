@@ -7,11 +7,6 @@ import (
 	"os"
 )
 
-type FileStorage interface {
-	WriteCounter(name string, delta int64) error
-	WriteGauge(name string, value float64) error
-}
-
 type fileStorage struct {
 	file   *os.File
 	writer *bufio.Writer
@@ -29,49 +24,21 @@ func newFileStorage(path string) (*fileStorage, error) {
 	}, nil
 }
 
-func (f *fileStorage) WriteCounter(name string, delta int64) error {
-	metric := entity.Metrics{
-		ID:    name,
-		MType: entity.Counter,
-		Delta: &delta,
-	}
+func (f *fileStorage) WriteMetrics(metrics []entity.Metrics) error {
+	for _, metric := range metrics {
+		data, err := easyjson.Marshal(metric)
+		if err != nil {
+			return err
+		}
 
-	data, err := easyjson.Marshal(metric)
-	if err != nil {
-		return err
-	}
+		_, err = f.writer.Write(data)
+		if err != nil {
+			return err
+		}
 
-	_, err = f.writer.Write(data)
-	if err != nil {
-		return err
-	}
-
-	if err = f.writer.WriteByte('\n'); err != nil {
-		return err
-	}
-
-	return f.writer.Flush()
-}
-
-func (f *fileStorage) WriteGauge(name string, value float64) error {
-	metric := entity.Metrics{
-		ID:    name,
-		MType: entity.Gauge,
-		Value: &value,
-	}
-
-	data, err := easyjson.Marshal(metric)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.writer.Write(data)
-	if err != nil {
-		return err
-	}
-
-	if err = f.writer.WriteByte('\n'); err != nil {
-		return err
+		if err = f.writer.WriteByte('\n'); err != nil {
+			return err
+		}
 	}
 
 	return f.writer.Flush()

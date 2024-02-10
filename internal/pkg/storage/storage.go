@@ -7,6 +7,18 @@ import (
 	"os"
 )
 
+type MemoryStorage interface {
+	UpdateCounter(name string, counter int64) error
+	UpdateGauge(name string, gauge float64) error
+	GetCounterValue(name string) (int64, error)
+	GetGaugeValue(name string) (float64, error)
+	ListMetrics() (entity.MetricsList, error)
+}
+
+type FileStorage interface {
+	WriteMetrics(metrics []entity.Metrics) error
+}
+
 type Storage struct {
 	SyncWriteFile bool
 	Memory        MemoryStorage

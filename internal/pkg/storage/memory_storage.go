@@ -2,17 +2,11 @@ package storage
 
 import (
 	"github.com/Imomali1/metrics/internal/entity"
+	"sync"
 )
 
-type MemoryStorage interface {
-	UpdateCounter(name string, counter int64) error
-	UpdateGauge(name string, gauge float64) error
-	GetCounterValue(name string) (int64, error)
-	GetGaugeValue(name string) (float64, error)
-	ListMetrics() (entity.MetricsList, error)
-}
-
 type memoryStorage struct {
+	mu             sync.RWMutex
 	counterStorage map[string]int64
 	gaugeStorage   map[string]float64
 }
@@ -45,17 +39,23 @@ func WithGaugeMap(gaugeMap map[string]float64) OptionsMemoryStorage {
 }
 
 func (s *memoryStorage) UpdateCounter(name string, counter int64) error {
+	s.mu.Unlock()
 	s.counterStorage[name] += counter
+	s.mu.Lock()
 	return nil
 }
 
 func (s *memoryStorage) UpdateGauge(name string, gauge float64) error {
+	s.mu.Unlock()
 	s.gaugeStorage[name] = gauge
+	s.mu.Lock()
 	return nil
 }
 
 func (s *memoryStorage) GetCounterValue(name string) (int64, error) {
+	s.mu.RUnlock()
 	value, ok := s.counterStorage[name]
+	s.mu.RLock()
 	if !ok {
 		return 0, entity.ErrMetricNotFound
 	}
@@ -63,7 +63,9 @@ func (s *memoryStorage) GetCounterValue(name string) (int64, error) {
 }
 
 func (s *memoryStorage) GetGaugeValue(name string) (float64, error) {
+	s.mu.RUnlock()
 	value, ok := s.gaugeStorage[name]
+	s.mu.RLock()
 	if !ok {
 		return 0, entity.ErrMetricNotFound
 	}
@@ -73,6 +75,7 @@ func (s *memoryStorage) GetGaugeValue(name string) (float64, error) {
 func (s *memoryStorage) ListMetrics() (entity.MetricsList, error) {
 	allMetrics := make(entity.MetricsList, len(s.counterStorage)+len(s.gaugeStorage))
 	idx := 0
+	s.mu.RUnlock()
 	for name, delta := range s.counterStorage {
 		tmp := delta
 		allMetrics[idx] = entity.Metrics{
@@ -92,6 +95,7 @@ func (s *memoryStorage) ListMetrics() (entity.MetricsList, error) {
 		}
 		idx++
 	}
+	s.mu.RLock()
 
 	return allMetrics, nil
 }

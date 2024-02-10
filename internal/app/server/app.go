@@ -56,7 +56,6 @@ func Run() {
 			defer wg.Done()
 			if err = tasks.WriteMetricsToFile(ctx, storage, cfg.FileStoragePath, cfg.StoreInterval); err != nil {
 				log.Logger.Info().Err(err).Msg("error in writing metrics to file")
-				cancel()
 			}
 		}()
 	}

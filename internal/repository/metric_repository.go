@@ -20,7 +20,12 @@ func (r *metricRepository) UpdateCounter(name string, counter int64) error {
 	}
 
 	if r.storage.SyncWriteFile {
-		err = r.storage.File.WriteCounter(name, counter)
+		metric := entity.Metrics{
+			ID:    name,
+			MType: entity.Counter,
+			Delta: &counter,
+		}
+		err = r.storage.File.WriteMetrics([]entity.Metrics{metric})
 	}
 	return err
 }
@@ -32,7 +37,12 @@ func (r *metricRepository) UpdateGauge(name string, gauge float64) error {
 	}
 
 	if r.storage.SyncWriteFile {
-		err = r.storage.File.WriteGauge(name, gauge)
+		metric := entity.Metrics{
+			ID:    name,
+			MType: entity.Gauge,
+			Value: &gauge,
+		}
+		err = r.storage.File.WriteMetrics([]entity.Metrics{metric})
 	}
 	return err
 }
