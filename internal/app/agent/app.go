@@ -1,98 +1,136 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
-	"log"
-	"net/http"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/go-resty/resty/v2"
+	"github.com/mailru/easyjson"
+	"math/rand"
+	"os"
 	"runtime"
+	"sync"
 	"time"
 )
 
-var (
-	PollCount      int64
-	RandomValue    float64 = 123.0
-	currentMetrics []entity.Metric
-)
+type Metrics struct {
+	PollCount int64
+	Arr       []entity.Metrics
+	mu        sync.RWMutex
+}
 
 func Run() {
 	var cfg Config
 	Parse(&cfg)
 
+	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
+
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
+
+	metrics := new(Metrics)
+
+	log.Logger.Info().Msg("agent is up and running...")
 
 	for {
 		select {
 		case <-pollTicker.C:
-			pollMetrics()
+			log.Logger.Info().Msg("polling metrics...")
+			pollMetrics(metrics)
 		case <-reportTicker.C:
-			reportMetrics(cfg.ServerAddress)
+			log.Logger.Info().Msg("reporting metrics to server/v2...")
+			reportMetrics(log, cfg.ServerAddress, metrics)
 		}
 	}
 }
 
-func pollMetrics() {
+func pollMetrics(metrics *Metrics) {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
-	PollCount++
-	currentMetrics = []entity.Metric{
-		{Type: entity.Counter, Name: "PollCount", ValueCounter: PollCount},
-		{Type: entity.Gauge, Name: "RandomValue", ValueGauge: RandomValue},
-		{Type: entity.Gauge, Name: "Alloc", ValueGauge: float64(memStat.Alloc)},
-		{Type: entity.Gauge, Name: "BuckHashSys", ValueGauge: float64(memStat.BuckHashSys)},
-		{Type: entity.Gauge, Name: "Frees", ValueGauge: float64(memStat.Frees)},
-		{Type: entity.Gauge, Name: "GCCPUFraction", ValueGauge: memStat.GCCPUFraction},
-		{Type: entity.Gauge, Name: "GCSys", ValueGauge: float64(memStat.GCSys)},
-		{Type: entity.Gauge, Name: "HeapAlloc", ValueGauge: float64(memStat.HeapAlloc)},
-		{Type: entity.Gauge, Name: "HeapIdle", ValueGauge: float64(memStat.HeapIdle)},
-		{Type: entity.Gauge, Name: "HeapInuse", ValueGauge: float64(memStat.HeapInuse)},
-		{Type: entity.Gauge, Name: "HeapObjects", ValueGauge: float64(memStat.HeapObjects)},
-		{Type: entity.Gauge, Name: "HeapReleased", ValueGauge: float64(memStat.HeapReleased)},
-		{Type: entity.Gauge, Name: "HeapSys", ValueGauge: float64(memStat.HeapSys)},
-		{Type: entity.Gauge, Name: "LastGC", ValueGauge: float64(memStat.LastGC)},
-		{Type: entity.Gauge, Name: "Lookups", ValueGauge: float64(memStat.Lookups)},
-		{Type: entity.Gauge, Name: "MCacheInuse", ValueGauge: float64(memStat.MCacheInuse)},
-		{Type: entity.Gauge, Name: "MCacheSys", ValueGauge: float64(memStat.MCacheSys)},
-		{Type: entity.Gauge, Name: "MSpanInuse", ValueGauge: float64(memStat.MSpanInuse)},
-		{Type: entity.Gauge, Name: "MSpanSys", ValueGauge: float64(memStat.MSpanSys)},
-		{Type: entity.Gauge, Name: "Mallocs", ValueGauge: float64(memStat.Mallocs)},
-		{Type: entity.Gauge, Name: "NextGC", ValueGauge: float64(memStat.NextGC)},
-		{Type: entity.Gauge, Name: "NumForcedGC", ValueGauge: float64(memStat.NumForcedGC)},
-		{Type: entity.Gauge, Name: "NumGC", ValueGauge: float64(memStat.NumGC)},
-		{Type: entity.Gauge, Name: "OtherSys", ValueGauge: float64(memStat.OtherSys)},
-		{Type: entity.Gauge, Name: "PauseTotalNs", ValueGauge: float64(memStat.PauseTotalNs)},
-		{Type: entity.Gauge, Name: "StackInuse", ValueGauge: float64(memStat.StackInuse)},
-		{Type: entity.Gauge, Name: "StackSys", ValueGauge: float64(memStat.StackSys)},
-		{Type: entity.Gauge, Name: "Sys", ValueGauge: float64(memStat.Sys)},
-		{Type: entity.Gauge, Name: "TotalAlloc", ValueGauge: float64(memStat.TotalAlloc)},
+	metrics.PollCount++
+	RandomValue := rand.NormFloat64()
+	metrics.mu.Lock()
+	defer metrics.mu.Unlock()
+	metrics.Arr = []entity.Metrics{
+		{MType: entity.Counter, ID: "PollCount", Delta: &metrics.PollCount},
+		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(RandomValue)},
+		{MType: entity.Gauge, ID: "Alloc", Value: floatPtr(float64(memStat.Alloc))},
+		{MType: entity.Gauge, ID: "BuckHashSys", Value: floatPtr(float64(memStat.BuckHashSys))},
+		{MType: entity.Gauge, ID: "Frees", Value: floatPtr(float64(memStat.Frees))},
+		{MType: entity.Gauge, ID: "GCCPUFraction", Value: floatPtr(memStat.GCCPUFraction)},
+		{MType: entity.Gauge, ID: "GCSys", Value: floatPtr(float64(memStat.GCSys))},
+		{MType: entity.Gauge, ID: "HeapAlloc", Value: floatPtr(float64(memStat.HeapAlloc))},
+		{MType: entity.Gauge, ID: "HeapIdle", Value: floatPtr(float64(memStat.HeapIdle))},
+		{MType: entity.Gauge, ID: "HeapInuse", Value: floatPtr(float64(memStat.HeapInuse))},
+		{MType: entity.Gauge, ID: "HeapObjects", Value: floatPtr(float64(memStat.HeapObjects))},
+		{MType: entity.Gauge, ID: "HeapReleased", Value: floatPtr(float64(memStat.HeapReleased))},
+		{MType: entity.Gauge, ID: "HeapSys", Value: floatPtr(float64(memStat.HeapSys))},
+		{MType: entity.Gauge, ID: "LastGC", Value: floatPtr(float64(memStat.LastGC))},
+		{MType: entity.Gauge, ID: "Lookups", Value: floatPtr(float64(memStat.Lookups))},
+		{MType: entity.Gauge, ID: "MCacheInuse", Value: floatPtr(float64(memStat.MCacheInuse))},
+		{MType: entity.Gauge, ID: "MCacheSys", Value: floatPtr(float64(memStat.MCacheSys))},
+		{MType: entity.Gauge, ID: "MSpanInuse", Value: floatPtr(float64(memStat.MSpanInuse))},
+		{MType: entity.Gauge, ID: "MSpanSys", Value: floatPtr(float64(memStat.MSpanSys))},
+		{MType: entity.Gauge, ID: "Mallocs", Value: floatPtr(float64(memStat.Mallocs))},
+		{MType: entity.Gauge, ID: "NextGC", Value: floatPtr(float64(memStat.NextGC))},
+		{MType: entity.Gauge, ID: "NumForcedGC", Value: floatPtr(float64(memStat.NumForcedGC))},
+		{MType: entity.Gauge, ID: "NumGC", Value: floatPtr(float64(memStat.NumGC))},
+		{MType: entity.Gauge, ID: "OtherSys", Value: floatPtr(float64(memStat.OtherSys))},
+		{MType: entity.Gauge, ID: "PauseTotalNs", Value: floatPtr(float64(memStat.PauseTotalNs))},
+		{MType: entity.Gauge, ID: "StackInuse", Value: floatPtr(float64(memStat.StackInuse))},
+		{MType: entity.Gauge, ID: "StackSys", Value: floatPtr(float64(memStat.StackSys))},
+		{MType: entity.Gauge, ID: "Sys", Value: floatPtr(float64(memStat.Sys))},
+		{MType: entity.Gauge, ID: "TotalAlloc", Value: floatPtr(float64(memStat.TotalAlloc))},
 	}
 }
 
-func reportMetrics(serverAddress string) {
-	if len(currentMetrics) == 0 {
-		log.Println("No metrics to report.")
+func floatPtr(f float64) *float64 {
+	return &f
+}
+
+func reportMetrics(log logger.Logger, serverAddress string, metrics *Metrics) {
+	if len(metrics.Arr) == 0 {
+		log.Logger.Info().Msg("no metrics to report")
 		return
 	}
-	for _, metric := range currentMetrics {
-		url := fmt.Sprintf("http://%s/update/%s/%s/", serverAddress, metric.Type, metric.Name)
-		switch metric.Type {
-		case entity.Counter:
-			url = fmt.Sprintf("%s%d", url, metric.ValueCounter)
-		case entity.Gauge:
-			url = fmt.Sprintf("%s%f", url, metric.ValueGauge)
-		default:
-			log.Println("Invalid metric type: ", metric.Type)
-			continue
-		}
-		resp, err := http.Post(url, "text/plain", nil)
+	client := resty.New().
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Content-Type", "application/json")
+	url := fmt.Sprintf("http://%s/update/", serverAddress)
+	metrics.mu.RLock()
+	for _, metric := range metrics.Arr {
+		body, err := easyjson.Marshal(metric)
 		if err != nil {
-			log.Println("Error in reporting metrics:", err)
+			log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
 			continue
 		}
-		resp.Body.Close()
+		var buf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&buf)
+		_, err = gzipWriter.Write(body)
+		if err != nil {
+			log.Logger.Info().Err(err).Msg("cannot compress body")
+			continue
+		}
+		err = gzipWriter.Close()
+		if err != nil {
+			log.Logger.Info().Err(err).Msg("cannot close gzip writer")
+			continue
+		}
+		_, err = client.R().
+			SetBody(buf.Bytes()).
+			Post(url)
+		if err != nil {
+			log.Logger.Info().Err(err).Msg("error in making request")
+			continue
+		}
 
-		log.Println("Metrics reported successfully.")
+		log.Logger.Info().Msg("metrics reported successfully")
 	}
-	currentMetrics = nil
+	metrics.mu.RUnlock()
+
+	metrics.mu.Lock()
+	metrics.Arr = nil
+	metrics.mu.Unlock()
 }
