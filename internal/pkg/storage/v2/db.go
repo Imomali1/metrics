@@ -108,7 +108,7 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 	switch mType {
 	case entity.Counter:
 		query := `SELECT delta FROM counter WHERE name = $1 LIMIT 1`
-		delta := new(int64)
+		var delta *int64
 		if err := s.pool.QueryRow(ctx, query, id).Scan(&delta); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return entity.Metrics{}, nil
@@ -118,7 +118,7 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 		metric.Delta = delta
 	case entity.Gauge:
 		query := `SELECT value FROM gauge WHERE name = $1 LIMIT 1`
-		value := new(float64)
+		var value *float64
 		if err := s.pool.QueryRow(ctx, query, id).Scan(&value); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return entity.Metrics{}, nil
@@ -146,8 +146,11 @@ func (s *dbStorage) GetAll(ctx context.Context) (entity.MetricsList, error) {
 		defer rows.Close()
 
 		for rows.Next() {
-			var mType string
-			name, delta, value := new(string), new(int64), new(float64)
+			var (
+				name, mType string
+				delta       *int64
+				value       *float64
+			)
 			if i == 0 {
 				err = rows.Scan(&name, &delta)
 				mType = entity.Counter
@@ -161,7 +164,7 @@ func (s *dbStorage) GetAll(ctx context.Context) (entity.MetricsList, error) {
 			}
 
 			list = append(list, entity.Metrics{
-				ID:    *name,
+				ID:    name,
 				MType: mType,
 				Delta: delta,
 				Value: value,

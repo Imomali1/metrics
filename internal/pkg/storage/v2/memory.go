@@ -35,27 +35,25 @@ func (s *memoryStorage) Update(ctx context.Context, batch entity.MetricsList) er
 }
 
 func (s *memoryStorage) GetOne(ctx context.Context, id string, mType string) (entity.Metrics, error) {
-	var ok bool
-	delta, value := new(int64), new(float64)
+	var metric = entity.Metrics{ID: id, MType: mType}
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if mType == entity.Counter {
-		*delta, ok = s.counterStorage[id]
+		delta, ok := s.counterStorage[id]
+		if !ok {
+			return entity.Metrics{}, entity.ErrMetricNotFound
+		}
+		metric.Delta = &delta
 	} else if mType == entity.Gauge {
-		*value, ok = s.gaugeStorage[id]
+		value, ok := s.gaugeStorage[id]
+		if !ok {
+			return entity.Metrics{}, entity.ErrMetricNotFound
+		}
+		metric.Value = &value
 	}
 
-	if !ok {
-		return entity.Metrics{}, entity.ErrMetricNotFound
-	}
-
-	return entity.Metrics{
-		ID:    id,
-		MType: mType,
-		Delta: delta,
-		Value: value,
-	}, nil
+	return metric, nil
 }
 
 func (s *memoryStorage) GetAll(ctx context.Context) (entity.MetricsList, error) {
