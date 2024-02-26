@@ -5,7 +5,6 @@ import (
 	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/mailru/easyjson"
-	"log"
 	"os"
 )
 
@@ -63,15 +62,7 @@ func WithSyncWrite(filename string) OptionsStorage {
 
 func RestoreFile(ctx context.Context, filename string) OptionsStorage {
 	return func(s *Storage) error {
-		if _, err := os.Stat(filename); err != nil {
-			if os.IsNotExist(err) {
-				log.Println("file does not exist, so metrics can't be restored")
-				return nil
-			}
-			return err
-		}
-
-		file, err := os.OpenFile(filename, os.O_RDONLY, 0666)
+		file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
 			return err
 		}

@@ -72,6 +72,10 @@ func createTable(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 func (s *dbStorage) Update(ctx context.Context, batch entity.MetricsList) error {
+	if len(batch) == 0 {
+		return nil
+	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
