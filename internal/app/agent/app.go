@@ -9,6 +9,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/mailru/easyjson"
 	"math/rand"
+	"net/http"
 	"os"
 	"runtime"
 	"sync"
@@ -32,6 +33,11 @@ func Run() {
 
 	metrics := new(Metrics)
 
+	if err := checkServer(log, cfg.ServerAddress); err != nil {
+		log.Logger.Err(err).Send()
+		return
+	}
+
 	log.Logger.Info().Msg("agent is up and running...")
 
 	for {
@@ -46,6 +52,24 @@ func Run() {
 			reportMetricsV2(log, cfg.ServerAddress, metrics)
 		}
 	}
+}
+
+func checkServer(log logger.Logger, address string) error {
+	client := resty.New()
+	url := fmt.Sprintf("http://%s/healthz", address)
+	retries := []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
+	for i := 0; i < 3; i++ {
+		resp, err := client.R().Get(url)
+		if err != nil {
+			time.Sleep(retries[i])
+			log.Logger.Info().Msgf("attempt #%d to connect server", i+1)
+			continue
+		}
+		if resp.StatusCode() == http.StatusOK {
+			return nil
+		}
+	}
+	return fmt.Errorf("connection refused")
 }
 
 func pollMetrics(metrics *Metrics) {

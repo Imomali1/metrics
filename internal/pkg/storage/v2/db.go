@@ -36,19 +36,22 @@ func newDBStorage(ctx context.Context, dsn string) (*dbStorage, error) {
 
 func createTable(ctx context.Context, pool *pgxpool.Pool) error {
 	var (
-		access = `GRANT ALL PRIVILEGES ON DATABASE metrics TO metrics;`
+		counterTable = `
+		CREATE TABLE IF NOT EXISTS counter (
+    		id SERIAL PRIMARY KEY,
+    		name TEXT NOT NULL UNIQUE,
+    		delta INTEGER
+		)`
 
-		schema = `
-	CREATE TABLE IF NOT EXISTS metrics (
-    	id SERIAL PRIMARY KEY,
-    	name TEXT NOT NULL,
-    	type TEXT NOT NULL,
-    	delta INTEGER,
-    	value DOUBLE PRECISION
-	)`
+		gaugeTable = `
+		CREATE TABLE IF NOT EXISTS gauge (
+    		id SERIAL PRIMARY KEY,
+    		name TEXT NOT NULL UNIQUE,
+    		value DOUBLE PRECISION
+		)`
 	)
 
-	statements := []string{access, schema}
+	statements := []string{counterTable, gaugeTable}
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -69,38 +72,26 @@ func createTable(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 func (s *dbStorage) Update(ctx context.Context, batch entity.MetricsList) error {
-	// If metric exists just update, otherwise insert
-	statusMap := make(map[string]bool)
-	for _, one := range batch {
-		metric, err := s.GetOne(ctx, one.ID, one.MType)
-		if err != nil {
-			return err
-		}
-		// Set true, if metric exists
-		statusMap[one.ID] = metric.ID != ""
-	}
-
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 
-	queryInsert := `INSERT INTO metrics(id, type, delta, value) VALUES ($1, $2, $3, $4)`
-	queryUpdateDelta := `UPDATE metrics SET delta = $1 WHERE id = $2`
-	queryUpdateValue := `UPDATE metrics SET value = $1 WHERE id = $2`
+	queryInsertLayout := `INSERT INTO %[1]s (name, %[2]s)
+						VALUES ($1, $2)
+						ON CONFLICT (name)
+						DO UPDATE
+						SET %[2]s = EXCLUDED.%[2]s;`
 
 	for _, one := range batch {
-		exists := statusMap[one.ID]
-		if exists {
-			_, err = tx.Exec(ctx, queryInsert, one)
-		} else {
-			if one.MType == entity.Counter {
-				_, err = tx.Exec(ctx, queryUpdateDelta, *one.Delta, one.ID)
-			} else if one.MType == entity.Gauge {
-				_, err = tx.Exec(ctx, queryUpdateValue, *one.Value, one.ID)
-			}
+		var query string
+		if one.MType == entity.Counter {
+			query = fmt.Sprintf(queryInsertLayout, "counter", "delta")
+			_, err = tx.Exec(ctx, query, one.ID, *one.Delta)
+		} else if one.MType == entity.Gauge {
+			query = fmt.Sprintf(queryInsertLayout, "gauge", "value")
+			_, err = tx.Exec(ctx, query, one.ID, *one.Value)
 		}
-
 		if err != nil {
 			if errRollBack := tx.Rollback(ctx); errRollBack != nil {
 				return fmt.Errorf("exec error: %w; rollback error: %w", err, errRollBack)
@@ -116,7 +107,7 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 	var metric = entity.Metrics{ID: id, MType: mType}
 	switch mType {
 	case entity.Counter:
-		query := `SELECT delta FROM metrics WHERE id = $1 LIMIT 1`
+		query := `SELECT delta FROM counter WHERE name = $1 LIMIT 1`
 		delta := new(int64)
 		if err := s.pool.QueryRow(ctx, query, id).Scan(&delta); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -126,7 +117,7 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 		}
 		metric.Delta = delta
 	case entity.Gauge:
-		query := `SELECT value FROM metrics WHERE id = $1 LIMIT 1`
+		query := `SELECT value FROM gauge WHERE name = $1 LIMIT 1`
 		value := new(float64)
 		if err := s.pool.QueryRow(ctx, query, id).Scan(&value); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -141,32 +132,45 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 }
 
 func (s *dbStorage) GetAll(ctx context.Context) (entity.MetricsList, error) {
-	query := `SELECT id, type, delta, value FROM metrics`
-	rows, err := s.pool.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	querySelectLayout := `SELECT name, %s FROM %s`
+
+	colTables := [][]string{{"delta", "counter"}, {"value", "gauge"}}
 
 	var list entity.MetricsList
-	for rows.Next() {
-		id, mType := new(string), new(string)
-		delta, value := new(int64), new(float64)
-
-		if err = rows.Scan(&id, &mType, &delta, &value); err != nil {
+	for i, colTable := range colTables {
+		query := fmt.Sprintf(querySelectLayout, colTable[0], colTable[1])
+		rows, err := s.pool.Query(ctx, query)
+		if err != nil {
 			return nil, err
 		}
+		defer rows.Close()
 
-		list = append(list, entity.Metrics{
-			ID:    *id,
-			MType: *mType,
-			Delta: delta,
-			Value: value,
-		})
-	}
+		for rows.Next() {
+			var mType string
+			name, delta, value := new(string), new(int64), new(float64)
+			if i == 0 {
+				err = rows.Scan(&name, &delta)
+				mType = entity.Counter
+			} else {
+				err = rows.Scan(&name, &value)
+				mType = entity.Gauge
+			}
 
-	if err = rows.Err(); err != nil {
-		return nil, err
+			if err != nil {
+				return nil, err
+			}
+
+			list = append(list, entity.Metrics{
+				ID:    *name,
+				MType: mType,
+				Delta: delta,
+				Value: value,
+			})
+		}
+
+		if err = rows.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	return list, nil

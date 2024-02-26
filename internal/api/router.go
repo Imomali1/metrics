@@ -6,6 +6,7 @@ import (
 	"github.com/Imomali1/metrics/internal/pkg/middlewares"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 type Handlers struct {
@@ -34,6 +35,10 @@ func NewRouter(options Options) *gin.Engine {
 	router.GET("/", h.MetricHandler.ListMetrics)
 
 	router.GET("/ping", h.MetricHandler.PingDB)
+
+	router.GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusOK)
+	})
 
 	updateRoutes := router.Group("/update")
 	{
