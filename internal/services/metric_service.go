@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/repository"
 )
@@ -34,4 +35,8 @@ func (s *metricService) GetGaugeValue(name string) (float64, error) {
 func (s *metricService) ListMetrics() (entity.MetricsList, error) {
 	allMetrics, err := s.repo.ListMetrics()
 	return allMetrics, err
+}
+
+func (s *metricService) PingDB(ctx context.Context) error {
+	return s.repo.PingDB(ctx)
 }
