@@ -7,15 +7,31 @@ import (
 )
 
 type metricRepository struct {
-	storage store.IStorage
+	storage *store.Storage
 }
 
-func newMetricRepository(storage store.IStorage) *metricRepository {
+func newMetricRepository(storage *store.Storage) *metricRepository {
 	return &metricRepository{storage: storage}
 }
 
 func (r *metricRepository) UpdateMetrics(ctx context.Context, batch entity.MetricsList) error {
-	return r.storage.Update(ctx, batch)
+	err := r.storage.Update(ctx, batch)
+	if err != nil {
+		return err
+	}
+	if r.storage.SyncWriteAllowed {
+		var list entity.MetricsList
+		list, err = r.storage.GetAll(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = r.storage.Sync.Write(list)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *metricRepository) GetMetrics(ctx context.Context, metric entity.Metrics) (entity.Metrics, error) {

@@ -76,18 +76,21 @@ func Run() {
 	}
 }
 
-func initStorage(cfg Config) (store.IStorage, error) {
-	if cfg.DatabaseDSN != "" {
-		return store.NewStorage(store.WithDB(cfg.DatabaseDSN))
+func initStorage(cfg Config) (*store.Storage, error) {
+	dsn, filename := cfg.DatabaseDSN, cfg.FileStoragePath
+
+	var storageOptions []store.OptionsStorage
+	if dsn != "" {
+		storageOptions = append(storageOptions, store.WithDB(context.Background(), dsn))
 	}
 
-	if cfg.FileStoragePath != "" {
-		return store.NewStorage(store.WithFileStorage(cfg.FileStoragePath))
+	if cfg.StoreInterval == 0 {
+		storageOptions = append(storageOptions, store.WithSyncWrite(filename))
 	}
 
-	return store.NewStorage(store.WithMemoryStorage(
-		cfg.StoreInterval == 0,
-		cfg.Restore,
-		cfg.FileStoragePath,
-	))
+	if cfg.Restore {
+		storageOptions = append(storageOptions, store.RestoreFile(context.Background(), filename))
+	}
+
+	return store.NewStorage(storageOptions...)
 }

@@ -35,16 +35,37 @@ func newDBStorage(ctx context.Context, dsn string) (*dbStorage, error) {
 }
 
 func createTable(ctx context.Context, pool *pgxpool.Pool) error {
-	const schema = `
+	var (
+		access = `GRANT ALL PRIVILEGES ON DATABASE metrics TO metrics;`
+
+		schema = `
 	CREATE TABLE IF NOT EXISTS metrics (
-    	id VARCHAR(63) PRIMARY KEY,
-    	type VARCHAR(15) NOT NULL,
+    	id SERIAL PRIMARY KEY,
+    	name TEXT NOT NULL,
+    	type TEXT NOT NULL,
     	delta INTEGER,
     	value DOUBLE PRECISION
 	)`
+	)
 
-	_, err := pool.Exec(ctx, schema)
-	return err
+	statements := []string{access, schema}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, statement := range statements {
+		_, err = tx.Exec(ctx, statement)
+		if err != nil {
+			if errRollBack := tx.Rollback(ctx); errRollBack != nil {
+				return fmt.Errorf("exec error: %w; rollback error: %w", err, errRollBack)
+			}
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (s *dbStorage) Update(ctx context.Context, batch entity.MetricsList) error {

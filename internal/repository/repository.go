@@ -17,7 +17,7 @@ type Repository struct {
 	MetricRepository
 }
 
-func New(memStorage store.IStorage) *Repository {
+func New(memStorage *store.Storage) *Repository {
 	return &Repository{
 		MetricRepository: newMetricRepository(memStorage),
 	}
