@@ -21,6 +21,7 @@ func Run() {
 	Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
+	log.Logger.Info().Msgf("configs: %v\n", cfg)
 
 	storage, err := initStorage(cfg)
 	if err != nil {
@@ -28,7 +29,6 @@ func Run() {
 		return
 	}
 
-	log.Logger.Info().Msgf("configs: %v\n", cfg)
 	repo := repository.New(storage)
 	service := services.New(repo)
 	handler := api.NewRouter(api.Options{
@@ -82,7 +82,7 @@ func initStorage(cfg Config) (*store.Storage, error) {
 
 	var storageOptions []store.OptionsStorage
 	if dsn != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
 		storageOptions = append(storageOptions, store.WithDB(ctx, dsn))
 	}

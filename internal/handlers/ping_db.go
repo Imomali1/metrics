@@ -8,7 +8,7 @@ import (
 )
 
 func (h *MetricHandler) PingDB(ctx *gin.Context) {
-	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	c, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()
 
 	err := h.serviceManager.Ping(c)

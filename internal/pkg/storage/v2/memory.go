@@ -25,9 +25,11 @@ func (s *memoryStorage) Update(ctx context.Context, batch entity.MetricsList) er
 	defer s.mu.Unlock()
 	for _, one := range batch {
 		if one.MType == entity.Counter {
-			s.counterStorage[one.ID] += *one.Delta
+			delta := *one.Delta
+			s.counterStorage[one.ID] += delta
 		} else if one.MType == entity.Gauge {
-			s.gaugeStorage[one.ID] = *one.Value
+			value := *one.Value
+			s.gaugeStorage[one.ID] = value
 		}
 	}
 
@@ -52,7 +54,6 @@ func (s *memoryStorage) GetOne(ctx context.Context, id string, mType string) (en
 		}
 		metric.Value = &value
 	}
-
 	return metric, nil
 }
 

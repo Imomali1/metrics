@@ -71,6 +71,8 @@ func RestoreFile(ctx context.Context, filename string) OptionsStorage {
 
 		scanner := bufio.NewScanner(file)
 
+		var i int
+		m := make(map[string]int)
 		var metrics entity.MetricsList
 		for scanner.Scan() {
 			line := scanner.Bytes()
@@ -78,7 +80,14 @@ func RestoreFile(ctx context.Context, filename string) OptionsStorage {
 			if err = easyjson.Unmarshal(line, &metric); err != nil {
 				return err
 			}
-			metrics = append(metrics, metric)
+			idx, ok := m[metric.ID]
+			if !ok {
+				metrics = append(metrics, metric)
+				m[metric.ID] = i
+				i++
+			} else {
+				metrics[idx] = metric
+			}
 		}
 
 		if err = scanner.Err(); err != nil {

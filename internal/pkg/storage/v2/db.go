@@ -25,6 +25,10 @@ func newDBStorage(ctx context.Context, dsn string) (*dbStorage, error) {
 		return nil, err
 	}
 
+	if err = pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+
 	if err = createTable(ctx, pool); err != nil {
 		return nil, err
 	}
