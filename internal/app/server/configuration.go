@@ -22,6 +22,7 @@ const (
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestore         = true
+	defaultDSN             = "postgres://metrics:metrics@localhost:5432/metrics?"
 
 	defaultServiceName = "metrics_server"
 	defaultLogLevel    = "info"
@@ -32,7 +33,7 @@ func Parse(cfg *Config) {
 	storeInterval := flag.Int("i", defaultStoreInterval, "интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
 	fileStoragePath := flag.String("f", defaultFileStoragePath, "полное имя файла, куда сохраняются текущие значения")
 	restore := flag.Bool("r", defaultRestore, "булево значение, определяющее, загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
-	databaseDSN := flag.String("d", "", "адрес подключения к БД")
+	databaseDSN := flag.String("d", defaultDSN, "адрес подключения к БД")
 	flag.Parse()
 
 	cfg.ServerAddress = getEnvString("ADDRESS", serverAddress)

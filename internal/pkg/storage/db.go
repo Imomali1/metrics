@@ -1,23 +1,37 @@
 package storage
 
 import (
-	_ "github.com/jackc/pgx/v5"
-	"github.com/jmoiron/sqlx"
+	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"log"
 )
 
 type postgresClient struct {
-	db *sqlx.DB
+	pool *pgxpool.Pool
 }
 
-func newPostgresClient(dsn string) (*postgresClient, error) {
-	db, err := sqlx.Open("pgx", dsn)
+func newPostgresClient(ctx context.Context, dsn string) (*postgresClient, error) {
+	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	return &postgresClient{db: db}, nil
+	log.Println(config)
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("Successfully opened db instance")
+
+	return &postgresClient{pool: pool}, nil
 }
 
-func (c *postgresClient) Ping() error {
-	return c.db.Ping()
+func (c *postgresClient) Ping(ctx context.Context) error {
+	return c.pool.Ping(ctx)
+}
+
+func (c *postgresClient) Close() {
+	c.pool.Close()
 }

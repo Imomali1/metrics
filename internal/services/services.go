@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/repository"
 )
@@ -11,7 +12,7 @@ type MetricService interface {
 	GetCounterValue(name string) (int64, error)
 	GetGaugeValue(name string) (float64, error)
 	ListMetrics() (entity.MetricsList, error)
-	PingDB() error
+	PingDB(ctx context.Context) error
 }
 
 type Services struct {

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/mailru/easyjson"
 	"os"
@@ -20,7 +21,8 @@ type FileStorage interface {
 }
 
 type DB interface {
-	Ping() error
+	Ping(ctx context.Context) error
+	Close()
 }
 
 type Storage struct {
@@ -45,10 +47,10 @@ func NewStorage(opts ...OptionsStorage) (*Storage, error) {
 
 type OptionsStorage func(s *Storage) error
 
-func WithDB(dsn string) OptionsStorage {
+func WithDB(ctx context.Context, dsn string) OptionsStorage {
 	return func(s *Storage) error {
 		var err error
-		s.DB, err = newPostgresClient(dsn)
+		s.DB, err = newPostgresClient(ctx, dsn)
 		return err
 	}
 }

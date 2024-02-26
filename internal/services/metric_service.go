@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/repository"
 )
@@ -36,6 +37,6 @@ func (s *metricService) ListMetrics() (entity.MetricsList, error) {
 	return allMetrics, err
 }
 
-func (s *metricService) PingDB() error {
-	return s.repo.PingDB()
+func (s *metricService) PingDB(ctx context.Context) error {
+	return s.repo.PingDB(ctx)
 }

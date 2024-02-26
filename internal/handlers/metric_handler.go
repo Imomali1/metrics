@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 )
@@ -11,7 +12,7 @@ type IMetricService interface {
 	GetCounterValue(name string) (int64, error)
 	GetGaugeValue(name string) (float64, error)
 	ListMetrics() (entity.MetricsList, error)
-	PingDB() error
+	PingDB(ctx context.Context) error
 }
 
 type MetricHandler struct {
