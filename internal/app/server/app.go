@@ -28,6 +28,7 @@ func Run() {
 		return
 	}
 
+	log.Logger.Info().Msgf("configs: %v\n", cfg)
 	repo := repository.New(storage)
 	service := services.New(repo)
 	handler := api.NewRouter(api.Options{

@@ -94,12 +94,12 @@ func RestoreFile(ctx context.Context, filename string) OptionsStorage {
 			return err
 		}
 
-		if s.IStorage != nil {
-			err = s.Update(ctx, metrics)
-			if err != nil {
-				return err
-			}
-		}
+		//if s.IStorage != nil {
+		//	err = s.Update(ctx, metrics)
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
 
 		return nil
 	}
