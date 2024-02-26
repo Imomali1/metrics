@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/gin-gonic/gin"
 	"github.com/mailru/easyjson"
 	"io"
 	"net/http"
+	"time"
 )
 
 func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
@@ -15,7 +18,7 @@ func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
 		h.log.Logger.Info().Msg("content-type is not application/json")
 		return
 	}
-	
+
 	body, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
@@ -31,21 +34,21 @@ func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
 		return
 	}
 
-	switch metrics.MType {
-	case gauge:
-		err = h.serviceManager.UpdateGauge(metrics.ID, *metrics.Value)
-		if err != nil {
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			h.log.Logger.Info().Err(err).Msg("cannot update gauge metric value")
-			return
-		}
-	case counter:
-		err = h.serviceManager.UpdateCounter(metrics.ID, *metrics.Delta)
-		if err != nil {
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			h.log.Logger.Info().Err(err).Msg("cannot update counter metric value")
-			return
-		}
+	if metrics.MType != entity.Gauge && metrics.MType != entity.Counter {
+		err = errors.New("invalid metric type")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		h.log.Logger.Info().Err(err).Send()
+		return
+	}
+
+	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err = h.serviceManager.UpdateMetrics(c, []entity.Metrics{metrics})
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		h.log.Logger.Info().Err(err).Msgf("cannot update %s metric value", metrics.MType)
+		return
 	}
 
 	ctx.JSON(http.StatusOK, metrics)

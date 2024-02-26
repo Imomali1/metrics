@@ -3,7 +3,7 @@ package tasks
 import (
 	"bufio"
 	"context"
-	store "github.com/Imomali1/metrics/internal/pkg/storage"
+	store "github.com/Imomali1/metrics/internal/pkg/storage/v2"
 	"github.com/mailru/easyjson"
 	"os"
 	"time"
@@ -26,7 +26,7 @@ func NewFileWriter(filename string) (*FileWriter, error) {
 	}, nil
 }
 
-func WriteMetricsToFile(ctx context.Context, storage *store.Storage, filename string, interval int) error {
+func WriteMetricsToFile(ctx context.Context, storage store.IStorage, filename string, interval int) error {
 	fw, err := NewFileWriter(filename)
 	if err != nil {
 		return err
@@ -47,8 +47,8 @@ func WriteMetricsToFile(ctx context.Context, storage *store.Storage, filename st
 	}
 }
 
-func (fw *FileWriter) WriteAllMetrics(storage *store.Storage) error {
-	metrics, err := storage.Memory.ListMetrics()
+func (fw *FileWriter) WriteAllMetrics(storage store.IStorage) error {
+	metrics, err := storage.GetAll(context.Background())
 	if err != nil {
 		return err
 	}

@@ -22,7 +22,7 @@ const (
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestore         = true
-	defaultDSN             = "postgres://metrics:metrics@localhost:5432/metrics?"
+	defaultDSN             = ""
 
 	defaultServiceName = "metrics_server"
 	defaultLogLevel    = "info"

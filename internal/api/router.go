@@ -26,7 +26,7 @@ func NewRouter(options Options) *gin.Engine {
 	router.Use(middlewares.CompressResponse(), middlewares.DecompressRequest())
 
 	h := Handlers{
-		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager.MetricService),
+		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager),
 	}
 
 	router.LoadHTMLGlob("static/templates/*.html")

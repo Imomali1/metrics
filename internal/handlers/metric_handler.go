@@ -1,26 +1,16 @@
 package handlers
 
 import (
-	"context"
-	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/Imomali1/metrics/internal/services"
 )
-
-type IMetricService interface {
-	UpdateCounter(name string, counter int64) error
-	UpdateGauge(name string, gauge float64) error
-	GetCounterValue(name string) (int64, error)
-	GetGaugeValue(name string) (float64, error)
-	ListMetrics() (entity.MetricsList, error)
-	PingDB(ctx context.Context) error
-}
 
 type MetricHandler struct {
 	log            logger.Logger
-	serviceManager IMetricService
+	serviceManager *services.Services
 }
 
-func NewMetricHandler(log logger.Logger, sm IMetricService) *MetricHandler {
+func NewMetricHandler(log logger.Logger, sm *services.Services) *MetricHandler {
 	return &MetricHandler{
 		log:            log,
 		serviceManager: sm,

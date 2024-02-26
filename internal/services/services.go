@@ -7,12 +7,10 @@ import (
 )
 
 type MetricService interface {
-	UpdateCounter(name string, counter int64) error
-	UpdateGauge(name string, gauge float64) error
-	GetCounterValue(name string) (int64, error)
-	GetGaugeValue(name string) (float64, error)
-	ListMetrics() (entity.MetricsList, error)
-	PingDB(ctx context.Context) error
+	UpdateMetrics(context.Context, entity.MetricsList) error
+	GetMetrics(context.Context, entity.Metrics) (entity.Metrics, error)
+	ListMetrics(context.Context) (entity.MetricsList, error)
+	Ping(ctx context.Context) error
 }
 
 type Services struct {

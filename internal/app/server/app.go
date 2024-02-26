@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/Imomali1/metrics/internal/api"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
-	store "github.com/Imomali1/metrics/internal/pkg/storage"
+	store "github.com/Imomali1/metrics/internal/pkg/storage/v2"
 	"github.com/Imomali1/metrics/internal/repository"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/Imomali1/metrics/internal/tasks"
@@ -76,23 +76,18 @@ func Run() {
 	}
 }
 
-func initStorage(cfg Config) (*store.Storage, error) {
-	var storageOptions []store.OptionsStorage
+func initStorage(cfg Config) (store.IStorage, error) {
 	if cfg.DatabaseDSN != "" {
-		storageOptions = append(storageOptions, store.WithDB(context.Background(), cfg.DatabaseDSN))
+		return store.NewStorage(store.WithDB(cfg.DatabaseDSN))
 	}
 
-	if cfg.FileStoragePath == "" {
-		return store.NewStorage(storageOptions...)
+	if cfg.FileStoragePath != "" {
+		return store.NewStorage(store.WithFileStorage(cfg.FileStoragePath))
 	}
 
-	if cfg.StoreInterval == 0 {
-		storageOptions = append(storageOptions, store.WithFileStorage(cfg.FileStoragePath))
-	}
-
-	if cfg.Restore {
-		storageOptions = append(storageOptions, store.RestoreFile(cfg.FileStoragePath))
-	}
-
-	return store.NewStorage(storageOptions...)
+	return store.NewStorage(store.WithMemoryStorage(
+		cfg.StoreInterval == 0,
+		cfg.Restore,
+		cfg.FileStoragePath,
+	))
 }
