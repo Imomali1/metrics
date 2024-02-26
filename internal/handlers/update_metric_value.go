@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"errors"
+	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 const (
@@ -29,35 +32,43 @@ func (h *MetricHandler) UpdateMetricValue(ctx *gin.Context) {
 		return
 	}
 
+	var err error
+	delta, value := new(int64), new(float64)
+
 	metricValue := ctx.Param("value")
 
 	switch metricType {
 	case gauge:
-		gaugeValue, err := strconv.ParseFloat(metricValue, 64)
+		*value, err = strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusBadRequest)
 			h.log.Logger.Info().Err(err).Msg("gauge metric value is not float64")
 			return
 		}
-		err = h.serviceManager.UpdateGauge(metricName, gaugeValue)
-		if err != nil {
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			h.log.Logger.Info().Err(err).Msg("cannot update gauge metric value")
-			return
-		}
 	case counter:
-		counterValue, err := strconv.ParseInt(metricValue, 10, 64)
+		*delta, err = strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusBadRequest)
 			h.log.Logger.Info().Err(err).Msg("counter metric value is not int64")
 			return
 		}
-		err = h.serviceManager.UpdateCounter(metricName, counterValue)
-		if err != nil {
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			h.log.Logger.Info().Err(err).Msg("cannot update counter metric value")
-			return
-		}
+	}
+
+	metrics := entity.Metrics{
+		ID:    metricName,
+		MType: metricType,
+		Delta: delta,
+		Value: value,
+	}
+
+	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err = h.serviceManager.UpdateMetrics(c, []entity.Metrics{metrics})
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		h.log.Logger.Info().Err(err).Msgf("cannot update %s metric value", metrics.MType)
+		return
 	}
 
 	ctx.Status(http.StatusOK)

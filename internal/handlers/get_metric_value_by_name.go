@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
@@ -25,34 +27,32 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 		return
 	}
 
+	metrics := entity.Metrics{
+		ID:    metricName,
+		MType: metricType,
+	}
+
+	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	result, err := h.serviceManager.GetMetrics(c, metrics)
+	if err != nil {
+		if errors.Is(err, entity.ErrMetricNotFound) {
+			ctx.AbortWithStatus(http.StatusNotFound)
+			h.log.Logger.Info().Err(err).Send()
+			return
+		}
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		h.log.Logger.Info().Err(err).Msgf("cannot get %s metric value", metrics.MType)
+		return
+	}
+
 	var metricValue string
-	switch metricType {
-	case gauge:
-		value, err := h.serviceManager.GetGaugeValue(metricName)
-		if err != nil {
-			if errors.Is(err, entity.ErrMetricNotFound) {
-				ctx.AbortWithStatus(http.StatusNotFound)
-				h.log.Logger.Info().Err(err).Send()
-				return
-			}
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			h.log.Logger.Info().Err(err).Msg("cannot get gauge metric value")
-			return
-		}
-		metricValue = strconv.FormatFloat(value, 'f', -1, 64)
-	case counter:
-		value, err := h.serviceManager.GetCounterValue(metricName)
-		if err != nil {
-			if errors.Is(err, entity.ErrMetricNotFound) {
-				ctx.AbortWithStatus(http.StatusNotFound)
-				h.log.Logger.Info().Err(err).Send()
-				return
-			}
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			h.log.Logger.Info().Err(err).Msg("cannot get counter metric value")
-			return
-		}
-		metricValue = strconv.FormatInt(value, 10)
+	switch result.MType {
+	case entity.Counter:
+		metricValue = strconv.FormatInt(*result.Delta, 10)
+	case entity.Gauge:
+		metricValue = strconv.FormatFloat(*result.Value, 'f', -1, 64)
 	}
 
 	ctx.String(http.StatusOK, metricValue)
