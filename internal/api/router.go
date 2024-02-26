@@ -49,6 +49,11 @@ func NewRouter(options Options) *gin.Engine {
 		updateRoutes.POST("/", h.MetricHandler.UpdateMetricValueJSON)
 	}
 
+	updatesRoute := router.Group("/updates")
+	{
+		updatesRoute.POST("/", h.MetricHandler.Updates)
+	}
+
 	getValueRoutes := router.Group("/value")
 	{
 		// v1 get value handler using URI
