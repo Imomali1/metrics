@@ -19,10 +19,15 @@ type FileStorage interface {
 	WriteMetrics(metrics []entity.Metrics) error
 }
 
+type DB interface {
+	Ping() error
+}
+
 type Storage struct {
 	SyncWriteFile bool
 	Memory        MemoryStorage
 	File          FileStorage
+	DB            DB
 }
 
 func NewStorage(opts ...OptionsStorage) (*Storage, error) {
@@ -39,6 +44,14 @@ func NewStorage(opts ...OptionsStorage) (*Storage, error) {
 }
 
 type OptionsStorage func(s *Storage) error
+
+func WithDB(dsn string) OptionsStorage {
+	return func(s *Storage) error {
+		var err error
+		s.DB, err = newPostgresClient(dsn)
+		return err
+	}
+}
 
 func WithFileStorage(path string) OptionsStorage {
 	return func(s *Storage) error {

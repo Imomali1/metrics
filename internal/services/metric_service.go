@@ -35,3 +35,7 @@ func (s *metricService) ListMetrics() (entity.MetricsList, error) {
 	allMetrics, err := s.repo.ListMetrics()
 	return allMetrics, err
 }
+
+func (s *metricService) PingDB() error {
+	return s.repo.PingDB()
+}

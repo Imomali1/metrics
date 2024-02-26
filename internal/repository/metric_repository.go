@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
 	store "github.com/Imomali1/metrics/internal/pkg/storage"
 )
@@ -60,4 +61,11 @@ func (r *metricRepository) GetGaugeValue(name string) (float64, error) {
 func (r *metricRepository) ListMetrics() (entity.MetricsList, error) {
 	allMetrics, err := r.storage.Memory.ListMetrics()
 	return allMetrics, err
+}
+
+func (r *metricRepository) PingDB() error {
+	if r.storage.DB != nil {
+		return r.storage.DB.Ping()
+	}
+	return fmt.Errorf("database instance is not created yet")
 }

@@ -11,6 +11,7 @@ type MetricRepository interface {
 	GetCounterValue(name string) (int64, error)
 	GetGaugeValue(name string) (float64, error)
 	ListMetrics() (entity.MetricsList, error)
+	PingDB() error
 }
 
 type Repository struct {

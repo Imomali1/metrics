@@ -33,6 +33,8 @@ func NewRouter(options Options) *gin.Engine {
 
 	router.GET("/", h.MetricHandler.ListMetrics)
 
+	router.GET("/ping", h.MetricHandler.PingDB)
+
 	updateRoutes := router.Group("/update")
 	{
 		// v1 update handler using URI
