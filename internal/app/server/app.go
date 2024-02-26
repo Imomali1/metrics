@@ -44,7 +44,7 @@ func Run() {
 	}
 	go func() {
 		err = server.ListenAndServe()
-		if errors.Is(err, http.ErrServerClosed) {
+		if !errors.Is(err, http.ErrServerClosed) {
 			log.Logger.Info().Err(err).Msg("failed to listen and serve http server")
 		}
 	}()
@@ -81,7 +81,9 @@ func initStorage(cfg Config) (*store.Storage, error) {
 
 	var storageOptions []store.OptionsStorage
 	if dsn != "" {
-		storageOptions = append(storageOptions, store.WithDB(context.Background(), dsn))
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		storageOptions = append(storageOptions, store.WithDB(ctx, dsn))
 	}
 
 	if cfg.StoreInterval == 0 {
