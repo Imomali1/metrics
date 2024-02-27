@@ -21,8 +21,7 @@ func Run() {
 	Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
-	log.Logger.Info().Msgf("configs: %v\n", cfg)
-
+	
 	storage, err := initStorage(cfg)
 	if err != nil {
 		log.Logger.Info().Err(err).Msg("failed to initialize storage")
