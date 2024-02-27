@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/Imomali1/metrics/internal/api"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
-	store "github.com/Imomali1/metrics/internal/pkg/storage/v2"
+	store "github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/Imomali1/metrics/internal/tasks"

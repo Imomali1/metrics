@@ -3,7 +3,7 @@ package tasks
 import (
 	"bufio"
 	"context"
-	store "github.com/Imomali1/metrics/internal/pkg/storage/v2"
+	store "github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/mailru/easyjson"
 	"os"
 	"time"

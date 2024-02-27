@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"github.com/Imomali1/metrics/internal/entity"
-	store "github.com/Imomali1/metrics/internal/pkg/storage/v2"
+	store "github.com/Imomali1/metrics/internal/pkg/storage"
 )
 
 type MetricRepository interface {

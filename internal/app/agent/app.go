@@ -3,13 +3,15 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 	"github.com/go-resty/resty/v2"
 	"github.com/mailru/easyjson"
 	"math/rand"
-	"net/http"
+	"net"
 	"os"
 	"runtime"
 	"sync"
@@ -59,19 +61,18 @@ func Run() {
 func checkServer(log logger.Logger, address string) error {
 	client := resty.New()
 	url := fmt.Sprintf("http://%s/healthz", address)
-	retries := []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
-	for i := 0; i < 3; i++ {
-		resp, err := client.R().Get(url)
-		if err != nil {
-			time.Sleep(retries[i])
-			log.Logger.Info().Msgf("attempt #%d to connect server", i+1)
-			continue
-		}
-		if resp.StatusCode() == http.StatusOK {
-			return nil
-		}
+
+	var err error
+	err = utils.DoWithTries(func() error {
+		_, err = client.R().Get(url)
+		return err
+	})
+
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return opErr.Err
 	}
-	return fmt.Errorf("connection refused")
+	return err
 }
 
 func pollMetrics(metrics *Metrics) {
@@ -226,9 +227,12 @@ func reportMetricsV3(log logger.Logger, serverAddress string, metrics *Metrics) 
 		return
 	}
 
-	_, err = client.R().
-		SetBody(buf.Bytes()).
-		Post(url)
+	err = utils.DoWithTries(func() error {
+		_, err = client.R().
+			SetBody(buf.Bytes()).
+			Post(url)
+		return err
+	})
 
 	if err != nil {
 		log.Logger.Info().Err(err).Msg("error in making request")

@@ -1,10 +1,11 @@
-package v2
+package storage
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
@@ -20,7 +21,12 @@ func newDBStorage(ctx context.Context, dsn string) (*dbStorage, error) {
 		return nil, err
 	}
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
+	var pool *pgxpool.Pool
+	err = utils.DoWithTries(func() error {
+		pool, err = pgxpool.NewWithConfig(ctx, config)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
