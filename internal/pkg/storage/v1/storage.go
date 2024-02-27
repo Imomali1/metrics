@@ -1,7 +1,8 @@
-package storage
+package v1
 
 import (
 	"bufio"
+	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/mailru/easyjson"
 	"os"
@@ -19,10 +20,16 @@ type FileStorage interface {
 	WriteMetrics(metrics []entity.Metrics) error
 }
 
+type DB interface {
+	Ping(ctx context.Context) error
+	Close()
+}
+
 type Storage struct {
 	SyncWriteFile bool
 	Memory        MemoryStorage
 	File          FileStorage
+	DB            DB
 }
 
 func NewStorage(opts ...OptionsStorage) (*Storage, error) {
@@ -39,6 +46,14 @@ func NewStorage(opts ...OptionsStorage) (*Storage, error) {
 }
 
 type OptionsStorage func(s *Storage) error
+
+func WithDB(ctx context.Context, dsn string) OptionsStorage {
+	return func(s *Storage) error {
+		var err error
+		s.DB, err = newPostgresClient(ctx, dsn)
+		return err
+	}
+}
 
 func WithFileStorage(path string) OptionsStorage {
 	return func(s *Storage) error {
