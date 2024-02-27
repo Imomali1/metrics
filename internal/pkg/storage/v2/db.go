@@ -44,7 +44,7 @@ func createTable(ctx context.Context, pool *pgxpool.Pool) error {
 		CREATE TABLE IF NOT EXISTS counter (
     		id SERIAL PRIMARY KEY,
     		name TEXT NOT NULL UNIQUE,
-    		delta INTEGER
+    		delta BIGINT
 		)`
 
 		gaugeTable = `
