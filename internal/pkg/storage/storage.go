@@ -2,36 +2,36 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/mailru/easyjson"
 	"os"
 )
 
-type MemoryStorage interface {
-	UpdateCounter(name string, counter int64) error
-	UpdateGauge(name string, gauge float64) error
-	GetCounterValue(name string) (int64, error)
-	GetGaugeValue(name string) (float64, error)
-	ListMetrics() (entity.MetricsList, error)
+type IStorage interface {
+	Update(ctx context.Context, batch entity.MetricsList) error
+	GetOne(ctx context.Context, id string, mType string) (entity.Metrics, error)
+	GetAll(ctx context.Context) (entity.MetricsList, error)
+	Ping(ctx context.Context) error
+	Close()
 }
 
-type FileStorage interface {
-	WriteMetrics(metrics []entity.Metrics) error
+type Sync interface {
+	Write(batch entity.MetricsList) error
 }
 
 type Storage struct {
-	SyncWriteFile bool
-	Memory        MemoryStorage
-	File          FileStorage
+	SyncWriteAllowed bool
+	Sync             Sync
+	IStorage
 }
 
 func NewStorage(opts ...OptionsStorage) (*Storage, error) {
-	s := &Storage{
-		Memory: newMemoryStorage(),
-	}
+	s := &Storage{}
+	// By default, we use memory storage
+	s.IStorage = newMemoryStorage()
 	for _, opt := range opts {
-		err := opt(s)
-		if err != nil {
+		if err := opt(s); err != nil {
 			return nil, err
 		}
 	}
@@ -40,19 +40,27 @@ func NewStorage(opts ...OptionsStorage) (*Storage, error) {
 
 type OptionsStorage func(s *Storage) error
 
-func WithFileStorage(path string) OptionsStorage {
+func WithDB(ctx context.Context, dsn string) OptionsStorage {
 	return func(s *Storage) error {
 		var err error
-		s.File, err = newFileStorage(path)
+		s.IStorage, err = newDBStorage(ctx, dsn)
+		return err
+	}
+}
+
+func WithSyncWrite(filename string) OptionsStorage {
+	return func(s *Storage) error {
+		var err error
+		s.Sync, err = newFileWriter(filename)
 		if err != nil {
 			return err
 		}
-		s.SyncWriteFile = true
+		s.SyncWriteAllowed = true
 		return nil
 	}
 }
 
-func RestoreFile(filename string) OptionsStorage {
+func RestoreFile(ctx context.Context, filename string) OptionsStorage {
 	return func(s *Storage) error {
 		file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
@@ -63,6 +71,8 @@ func RestoreFile(filename string) OptionsStorage {
 
 		scanner := bufio.NewScanner(file)
 
+		var i int
+		m := make(map[string]int)
 		var metrics entity.MetricsList
 		for scanner.Scan() {
 			line := scanner.Bytes()
@@ -70,34 +80,26 @@ func RestoreFile(filename string) OptionsStorage {
 			if err = easyjson.Unmarshal(line, &metric); err != nil {
 				return err
 			}
-			metrics = append(metrics, metric)
+			idx, ok := m[metric.ID]
+			if !ok {
+				metrics = append(metrics, metric)
+				m[metric.ID] = i
+				i++
+			} else {
+				metrics[idx] = metric
+			}
 		}
 
 		if err = scanner.Err(); err != nil {
 			return err
 		}
 
-		gaugeMap := make(map[string]float64)
-		counterMap := make(map[string]int64)
-
-		for _, m := range metrics {
-			if m.MType == entity.Gauge {
-				gaugeMap[m.ID] = *m.Value
-			} else if m.MType == entity.Counter {
-				counterMap[m.ID] = *m.Delta
+		if s.IStorage != nil {
+			err = s.Update(ctx, metrics)
+			if err != nil {
+				return err
 			}
 		}
-
-		var options []OptionsMemoryStorage
-		if len(gaugeMap) != 0 {
-			options = append(options, WithGaugeMap(gaugeMap))
-		}
-
-		if len(counterMap) != 0 {
-			options = append(options, WithCounterMap(counterMap))
-		}
-
-		s.Memory = newMemoryStorage(options...)
 
 		return nil
 	}

@@ -21,7 +21,7 @@ func Run() {
 	Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
-
+	
 	storage, err := initStorage(cfg)
 	if err != nil {
 		log.Logger.Info().Err(err).Msg("failed to initialize storage")
@@ -44,7 +44,7 @@ func Run() {
 	}
 	go func() {
 		err = server.ListenAndServe()
-		if errors.Is(err, http.ErrServerClosed) {
+		if !errors.Is(err, http.ErrServerClosed) {
 			log.Logger.Info().Err(err).Msg("failed to listen and serve http server")
 		}
 	}()
@@ -77,18 +77,21 @@ func Run() {
 }
 
 func initStorage(cfg Config) (*store.Storage, error) {
-	if cfg.FileStoragePath == "" {
-		return store.NewStorage()
-	}
+	dsn, filename := cfg.DatabaseDSN, cfg.FileStoragePath
 
 	var storageOptions []store.OptionsStorage
+	if dsn != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		storageOptions = append(storageOptions, store.WithDB(ctx, dsn))
+	}
 
 	if cfg.StoreInterval == 0 {
-		storageOptions = append(storageOptions, store.WithFileStorage(cfg.FileStoragePath))
+		storageOptions = append(storageOptions, store.WithSyncWrite(filename))
 	}
 
 	if cfg.Restore {
-		storageOptions = append(storageOptions, store.RestoreFile(cfg.FileStoragePath))
+		storageOptions = append(storageOptions, store.RestoreFile(context.Background(), filename))
 	}
 
 	return store.NewStorage(storageOptions...)
