@@ -34,16 +34,24 @@ func (h *MetricHandler) Updates(ctx *gin.Context) {
 		return
 	}
 
-	for _, metrics := range batch {
+	for i, metrics := range batch {
+		switch metrics.MType {
+		case entity.Counter:
+			h.log.Logger.Info().Msgf("#%d counter %s %d", i+1, metrics.ID, *metrics.Delta)
+		case entity.Gauge:
+			h.log.Logger.Info().Msgf("#%d gauge %s %f", i+1, metrics.ID, *metrics.Value)
+		}
+
 		if metrics.MType != entity.Gauge && metrics.MType != entity.Counter {
 			err = errors.New("invalid metric type")
 			ctx.AbortWithStatus(http.StatusBadRequest)
 			h.log.Logger.Info().Err(err).Send()
 			return
 		}
+
 	}
 
-	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	c, cancel := context.WithTimeout(ctx, 500*time.Second)
 	defer cancel()
 
 	err = h.serviceManager.UpdateMetrics(c, batch)

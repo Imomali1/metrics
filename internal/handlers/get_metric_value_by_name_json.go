@@ -41,7 +41,7 @@ func (h *MetricHandler) GetMetricValueByNameJSON(ctx *gin.Context) {
 		return
 	}
 
-	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	c, cancel := context.WithTimeout(ctx, 500*time.Second)
 	defer cancel()
 
 	var result entity.Metrics

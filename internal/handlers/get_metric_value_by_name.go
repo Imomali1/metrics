@@ -32,7 +32,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 		MType: metricType,
 	}
 
-	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	c, cancel := context.WithTimeout(ctx, 500*time.Second)
 	defer cancel()
 
 	result, err := h.serviceManager.GetMetrics(c, metrics)

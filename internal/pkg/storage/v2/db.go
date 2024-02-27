@@ -2,10 +2,10 @@ package v2
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 )
@@ -91,15 +91,40 @@ func (s *dbStorage) Update(ctx context.Context, batch entity.MetricsList) error 
 						DO UPDATE
 						SET %[2]s = EXCLUDED.%[2]s;`
 
+	counterValMap := make(map[string]int64)
+
 	for _, one := range batch {
 		var query string
+
 		if one.MType == entity.Counter {
+			_, exists := counterValMap[one.ID]
+			if !exists {
+				var oldValue int64
+				var oldCounter entity.Metrics
+				oldCounter, err = s.GetOne(ctx, one.ID, one.MType)
+				switch {
+				case err == nil:
+					oldValue = *oldCounter.Delta
+				case errors.Is(err, entity.ErrMetricNotFound):
+					oldValue = 0
+				default:
+					if errRollBack := tx.Rollback(ctx); errRollBack != nil {
+						return fmt.Errorf("get_one error: %w; rollback error: %w", err, errRollBack)
+					}
+					return err
+				}
+				counterValMap[one.ID] = oldValue
+			}
+
+			counterValMap[one.ID] += *one.Delta
+
 			query = fmt.Sprintf(queryInsertLayout, "counter", "delta")
-			_, err = tx.Exec(ctx, query, one.ID, *one.Delta)
+			_, err = tx.Exec(ctx, query, one.ID, counterValMap[one.ID])
 		} else if one.MType == entity.Gauge {
 			query = fmt.Sprintf(queryInsertLayout, "gauge", "value")
 			_, err = tx.Exec(ctx, query, one.ID, *one.Value)
 		}
+
 		if err != nil {
 			if errRollBack := tx.Rollback(ctx); errRollBack != nil {
 				return fmt.Errorf("exec error: %w; rollback error: %w", err, errRollBack)
@@ -118,8 +143,8 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 		query := `SELECT delta FROM counter WHERE name = $1 LIMIT 1`
 		var delta *int64
 		if err := s.pool.QueryRow(ctx, query, id).Scan(&delta); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return entity.Metrics{}, nil
+			if errors.Is(err, pgx.ErrNoRows) {
+				return entity.Metrics{}, entity.ErrMetricNotFound
 			}
 			return entity.Metrics{}, err
 		}
@@ -128,8 +153,8 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 		query := `SELECT value FROM gauge WHERE name = $1 LIMIT 1`
 		var value *float64
 		if err := s.pool.QueryRow(ctx, query, id).Scan(&value); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return entity.Metrics{}, nil
+			if errors.Is(err, pgx.ErrNoRows) {
+				return entity.Metrics{}, entity.ErrMetricNotFound
 			}
 			return entity.Metrics{}, err
 		}
