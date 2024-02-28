@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/Imomali1/metrics/internal/api"
+	"github.com/Imomali1/metrics/internal/app/server/configs"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	store "github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
@@ -17,11 +18,11 @@ import (
 )
 
 func Run() {
-	var cfg Config
-	Parse(&cfg)
+	var cfg configs.Config
+	configs.Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
-	
+
 	storage, err := initStorage(cfg)
 	if err != nil {
 		log.Logger.Info().Err(err).Msg("failed to initialize storage")
@@ -33,6 +34,7 @@ func Run() {
 	handler := api.NewRouter(api.Options{
 		Logger:         log,
 		ServiceManager: service,
+		Conf:           cfg,
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,7 +78,7 @@ func Run() {
 	}
 }
 
-func initStorage(cfg Config) (*store.Storage, error) {
+func initStorage(cfg configs.Config) (*store.Storage, error) {
 	dsn, filename := cfg.DatabaseDSN, cfg.FileStoragePath
 
 	var storageOptions []store.OptionsStorage

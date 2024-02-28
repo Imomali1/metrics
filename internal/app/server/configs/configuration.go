@@ -1,4 +1,4 @@
-package server
+package configs
 
 import (
 	"flag"
@@ -12,6 +12,7 @@ type Config struct {
 	FileStoragePath string
 	Restore         bool
 	DatabaseDSN     string
+	HashKey         string
 
 	ServiceName string
 	LogLevel    string
@@ -34,6 +35,8 @@ func Parse(cfg *Config) {
 	fileStoragePath := flag.String("f", defaultFileStoragePath, "полное имя файла, куда сохраняются текущие значения")
 	restore := flag.Bool("r", defaultRestore, "булево значение, определяющее, загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
 	databaseDSN := flag.String("d", defaultDSN, "адрес подключения к БД")
+	hashKey := flag.String("k", "", "Ключ для подписи данных")
+
 	flag.Parse()
 
 	cfg.ServerAddress = getEnvString("ADDRESS", serverAddress)
@@ -41,6 +44,7 @@ func Parse(cfg *Config) {
 	cfg.FileStoragePath = getEnvString("FILE_STORAGE_PATH", fileStoragePath)
 	cfg.Restore = getEnvBool("RESTORE", restore)
 	cfg.DatabaseDSN = getEnvString("DATABASE_DSN", databaseDSN)
+	cfg.HashKey = getEnvString("KEY", hashKey)
 
 	cfg.ServiceName = defaultServiceName
 	cfg.LogLevel = defaultLogLevel

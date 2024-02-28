@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"github.com/Imomali1/metrics/internal/app/agent/configs"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
@@ -20,13 +21,14 @@ import (
 
 type Metrics struct {
 	PollCount int64
+	HashKey   string
 	Arr       []entity.Metrics
 	mu        sync.RWMutex
 }
 
 func Run() {
-	var cfg Config
-	Parse(&cfg)
+	var cfg configs.Config
+	configs.Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
 
@@ -34,8 +36,9 @@ func Run() {
 	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
 
 	metrics := new(Metrics)
+	metrics.HashKey = cfg.HashKey
 
-	if err := checkServer(log, cfg.ServerAddress); err != nil {
+	if err := checkServer(cfg.ServerAddress); err != nil {
 		log.Logger.Err(err).Send()
 		return
 	}
@@ -58,7 +61,7 @@ func Run() {
 	}
 }
 
-func checkServer(log logger.Logger, address string) error {
+func checkServer(address string) error {
 	client := resty.New()
 	url := fmt.Sprintf("http://%s/healthz", address)
 
@@ -124,6 +127,7 @@ func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) 
 		log.Logger.Info().Msg("no metrics to report")
 		return
 	}
+
 	client := resty.New().SetHeader("Content-Type", "text/plain")
 
 	metrics.mu.RLock()
@@ -140,7 +144,12 @@ func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) 
 			log.Logger.Info().Msgf("invalid metric type: %s", metric.MType)
 			continue
 		}
-		_, err := client.R().Post(url)
+
+		err := utils.DoWithTries(func() error {
+			_, err := client.R().Post(url)
+			return err
+		})
+
 		if err != nil {
 			log.Logger.Info().Err(err).Msg("error in making request")
 			continue
@@ -155,18 +164,23 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 		log.Logger.Info().Msg("no metrics to report")
 		return
 	}
+
 	client := resty.New().
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Content-Type", "application/json")
+
 	url := fmt.Sprintf("http://%s/update/", serverAddress)
+
 	metrics.mu.RLock()
 	defer metrics.mu.RUnlock()
+
 	for _, metric := range metrics.Arr {
 		body, err := easyjson.Marshal(metric)
 		if err != nil {
 			log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
 			continue
 		}
+
 		var buf bytes.Buffer
 		gzipWriter := gzip.NewWriter(&buf)
 		_, err = gzipWriter.Write(body)
@@ -179,9 +193,15 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 			log.Logger.Info().Err(err).Msg("cannot close gzip writer")
 			continue
 		}
-		_, err = client.R().
-			SetBody(buf.Bytes()).
-			Post(url)
+
+		hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
+		client.SetHeader("HashSHA256", hash)
+
+		err = utils.DoWithTries(func() error {
+			_, err = client.R().SetBody(buf.Bytes()).Post(url)
+			return err
+		})
+
 		if err != nil {
 			log.Logger.Info().Err(err).Msg("error in making request")
 			continue
@@ -220,12 +240,14 @@ func reportMetricsV3(log logger.Logger, serverAddress string, metrics *Metrics) 
 		log.Logger.Info().Err(err).Msg("cannot compress body")
 		return
 	}
-
 	err = gzipWriter.Close()
 	if err != nil {
 		log.Logger.Info().Err(err).Msg("cannot close gzip writer")
 		return
 	}
+
+	hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
+	client.SetHeader("HashSHA256", hash)
 
 	err = utils.DoWithTries(func() error {
 		_, err = client.R().
