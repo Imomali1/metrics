@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/mailru/easyjson"
-	"io"
 	"net/http"
 	"time"
 )
@@ -19,7 +19,7 @@ func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
 		return
 	}
 
-	body, err := io.ReadAll(ctx.Request.Body)
+	body, err := utils.ReadAll(ctx.Request.Body)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		h.log.Logger.Info().Err(err).Msg("cannot read request body")
