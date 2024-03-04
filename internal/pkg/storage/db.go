@@ -22,7 +22,7 @@ func newDBStorage(ctx context.Context, dsn string) (*dbStorage, error) {
 	}
 
 	var pool *pgxpool.Pool
-	err = utils.DoWithTries(func() error {
+	err = utils.DoWithRetries(func() error {
 		pool, err = pgxpool.NewWithConfig(ctx, config)
 		return err
 	})

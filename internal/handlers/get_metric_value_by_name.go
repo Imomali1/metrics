@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
@@ -32,7 +31,7 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 		MType: metricType,
 	}
 
-	c, cancel := context.WithTimeout(ctx, 500*time.Second)
+	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
 	result, err := h.serviceManager.GetMetrics(c, metrics)

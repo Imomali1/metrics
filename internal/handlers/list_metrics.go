@@ -4,11 +4,10 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"time"
 )
 
 func (h *MetricHandler) ListMetrics(ctx *gin.Context) {
-	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
 	allMetrics, err := h.serviceManager.ListMetrics(c)

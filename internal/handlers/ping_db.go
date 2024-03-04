@@ -4,11 +4,10 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"time"
 )
 
 func (h *MetricHandler) PingDB(ctx *gin.Context) {
-	c, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
 	err := h.serviceManager.Ping(c)

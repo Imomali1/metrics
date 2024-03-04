@@ -31,6 +31,7 @@ func Run() {
 	configs.Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
+	log.Info().Msgf("%v\n", cfg)
 
 	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
@@ -66,7 +67,7 @@ func checkServer(address string) error {
 	url := fmt.Sprintf("http://%s/healthz", address)
 
 	var err error
-	err = utils.DoWithTries(func() error {
+	err = utils.DoWithRetries(func() error {
 		_, err = client.R().Get(url)
 		return err
 	})
@@ -145,7 +146,7 @@ func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) 
 			continue
 		}
 
-		err := utils.DoWithTries(func() error {
+		err := utils.DoWithRetries(func() error {
 			_, err := client.R().Post(url)
 			return err
 		})
@@ -194,10 +195,12 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 			continue
 		}
 
-		hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
-		client.SetHeader("HashSHA256", hash)
+		if metrics.HashKey != "" {
+			hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
+			client.SetHeader("HashSHA256", hash)
+		}
 
-		err = utils.DoWithTries(func() error {
+		err = utils.DoWithRetries(func() error {
 			_, err = client.R().SetBody(buf.Bytes()).Post(url)
 			return err
 		})
@@ -246,10 +249,12 @@ func reportMetricsV3(log logger.Logger, serverAddress string, metrics *Metrics) 
 		return
 	}
 
-	hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
-	client.SetHeader("HashSHA256", hash)
+	if metrics.HashKey != "" {
+		hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
+		client.SetHeader("HashSHA256", hash)
+	}
 
-	err = utils.DoWithTries(func() error {
+	err = utils.DoWithRetries(func() error {
 		_, err = client.R().
 			SetBody(buf.Bytes()).
 			Post(url)

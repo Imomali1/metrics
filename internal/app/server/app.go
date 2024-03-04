@@ -17,11 +17,15 @@ import (
 	"time"
 )
 
+const _timeout = 1 * time.Second
+
 func Run() {
 	var cfg configs.Config
 	configs.Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
+
+	log.Info().Msgf("%v\n", cfg)
 
 	storage, err := initStorage(cfg)
 	if err != nil {
@@ -69,7 +73,7 @@ func Run() {
 	cancel()
 	wg.Wait()
 
-	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), _timeout)
 	defer cancel()
 	if err = server.Shutdown(ctxShutdown); err != nil {
 		log.Logger.Info().Err(err).Msg("error in shutting down server")
@@ -83,7 +87,7 @@ func initStorage(cfg configs.Config) (*store.Storage, error) {
 
 	var storageOptions []store.OptionsStorage
 	if dsn != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), _timeout)
 		defer cancel()
 		storageOptions = append(storageOptions, store.WithDB(ctx, dsn))
 	}

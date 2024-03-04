@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mailru/easyjson"
 	"net/http"
-	"time"
 )
 
 func (h *MetricHandler) Updates(ctx *gin.Context) {
@@ -51,7 +50,7 @@ func (h *MetricHandler) Updates(ctx *gin.Context) {
 
 	}
 
-	c, cancel := context.WithTimeout(ctx, 500*time.Second)
+	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
 	err = h.serviceManager.UpdateMetrics(c, batch)

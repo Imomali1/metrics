@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 const (
@@ -61,7 +60,7 @@ func (h *MetricHandler) UpdateMetricValue(ctx *gin.Context) {
 		Value: value,
 	}
 
-	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
 	err = h.serviceManager.UpdateMetrics(c, []entity.Metrics{metrics})
