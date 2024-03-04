@@ -22,24 +22,26 @@ func (r responseBodyWriter) Write(b []byte) (int, error) {
 func ValidateHash(l logger.Logger, key string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if key != "" {
-			data, err := utils.ReadAll(ctx.Request.Body)
-			if err != nil {
-				ctx.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-				l.Logger.Info().Err(err).Msg("could not read body")
-				return
-			}
-
 			clientHash := ctx.GetHeader("HashSHA256")
 
-			controlHash := utils.GenerateHash(data, key)
+			if clientHash != "" {
+				data, err := utils.ReadAll(ctx.Request.Body)
+				if err != nil {
+					ctx.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+					l.Logger.Info().Err(err).Msg("could not read body")
+					return
+				}
 
-			if clientHash != controlHash {
-				ctx.AbortWithStatusJSON(http.StatusBadRequest, map[string]string{"error": "request data not validated"})
-				l.Logger.Info().Err(err).Msg("request data not validated")
-				return
+				controlHash := utils.GenerateHash(data, key)
+
+				if clientHash != controlHash {
+					ctx.AbortWithStatusJSON(http.StatusBadRequest, map[string]string{"error": "request data not validated"})
+					l.Logger.Info().Err(err).Msg("request data not validated")
+					return
+				}
+
+				ctx.Request.Body = io.NopCloser(bytes.NewBuffer(data))
 			}
-
-			ctx.Request.Body = io.NopCloser(bytes.NewBuffer(data))
 
 			w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: ctx.Writer}
 			ctx.Writer = w

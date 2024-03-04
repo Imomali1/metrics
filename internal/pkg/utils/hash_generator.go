@@ -1,12 +1,16 @@
 package utils
 
 import (
-	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 )
 
 func GenerateHash(value []byte, key string) string {
-	h := hmac.New(sha256.New, []byte(key))
+	h := sha256.New()
+	// передаём байты с ключом для хеширования
+	value = append(value, []byte(key)...)
 	h.Write(value)
-	return string(h.Sum(nil))
+	// вычисляем хеш
+	dst := h.Sum(nil)
+	return hex.EncodeToString(dst)
 }
