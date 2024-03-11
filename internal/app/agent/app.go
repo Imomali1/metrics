@@ -11,6 +11,8 @@ import (
 	"github.com/Imomali1/metrics/internal/pkg/utils"
 	"github.com/go-resty/resty/v2"
 	"github.com/mailru/easyjson"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"math/rand"
 	"net"
 	"os"
@@ -20,10 +22,9 @@ import (
 )
 
 type Metrics struct {
-	PollCount int64
-	HashKey   string
-	Arr       []entity.Metrics
 	mu        sync.RWMutex
+	PollCount int64
+	Arr       []entity.Metrics
 }
 
 func Run() {
@@ -32,12 +33,6 @@ func Run() {
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
 
-	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
-	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
-
-	metrics := new(Metrics)
-	metrics.HashKey = cfg.HashKey
-
 	if err := checkServer(cfg.ServerAddress); err != nil {
 		log.Logger.Err(err).Send()
 		return
@@ -45,49 +40,36 @@ func Run() {
 
 	log.Logger.Info().Msg("agent is up and running...")
 
+	metrics := new(Metrics)
+
+	reportWorker := make(chan []entity.Metrics, cfg.RateLimit)
+	go reportMetricsWorker(log, cfg.ServerAddress, cfg.HashKey, reportWorker)
+
+	pollTicker := time.NewTicker(time.Duration(cfg.PollInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(cfg.ReportInterval) * time.Second)
+
 	for {
 		select {
 		case <-pollTicker.C:
-			log.Logger.Info().Msg("polling metrics...")
-			pollMetrics(metrics)
+			log.Logger.Info().Msg("polling runtime metrics...")
+			go pollRuntimeMetrics(metrics)
+			log.Logger.Info().Msg("polling gopsutil metrics...")
+			go pollGopsutilMetrics(log, metrics)
 		case <-reportTicker.C:
-			log.Logger.Info().Msg("reporting metrics to server/v1...")
-			reportMetricsV1(log, cfg.ServerAddress, metrics)
-			log.Logger.Info().Msg("reporting metrics to server/v2...")
-			reportMetricsV2(log, cfg.ServerAddress, metrics)
-			log.Logger.Info().Msg("reporting metrics to server/v3...")
-			reportMetricsV3(log, cfg.ServerAddress, metrics)
+			log.Logger.Info().Msg("queueing metrics for reporting...")
+			reportWorker <- metrics.Arr
 		}
 	}
 }
 
-func checkServer(address string) error {
-	client := resty.New()
-	url := fmt.Sprintf("http://%s/healthz", address)
-
-	var err error
-	err = utils.DoWithRetries(func() error {
-		_, err = client.R().Get(url)
-		return err
-	})
-
-	var opErr *net.OpError
-	if errors.As(err, &opErr) {
-		return opErr.Err
-	}
-	return err
-}
-
-func pollMetrics(metrics *Metrics) {
+func pollRuntimeMetrics(metrics *Metrics) {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
 	metrics.PollCount++
-	RandomValue := rand.NormFloat64()
-	metrics.mu.Lock()
-	defer metrics.mu.Unlock()
+	randomValue := rand.NormFloat64()
 	metrics.Arr = []entity.Metrics{
 		{MType: entity.Counter, ID: "PollCount", Delta: &metrics.PollCount},
-		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(RandomValue)},
+		{MType: entity.Gauge, ID: "RandomValue", Value: floatPtr(randomValue)},
 		{MType: entity.Gauge, ID: "Alloc", Value: floatPtr(float64(memStat.Alloc))},
 		{MType: entity.Gauge, ID: "BuckHashSys", Value: floatPtr(float64(memStat.BuckHashSys))},
 		{MType: entity.Gauge, ID: "Frees", Value: floatPtr(float64(memStat.Frees))},
@@ -118,64 +100,48 @@ func pollMetrics(metrics *Metrics) {
 	}
 }
 
-func floatPtr(f float64) *float64 {
-	return &f
-}
-
-func reportMetricsV1(log logger.Logger, serverAddress string, metrics *Metrics) {
-	if len(metrics.Arr) == 0 {
-		log.Logger.Info().Msg("no metrics to report")
+func pollGopsutilMetrics(log logger.Logger, metrics *Metrics) {
+	vm, err := mem.VirtualMemory()
+	if err != nil {
+		log.Logger.Info().Err(err).Msg("cannot get memory metrics")
 		return
 	}
 
-	client := resty.New().SetHeader("Content-Type", "text/plain")
+	total, free := float64(vm.Total), float64(vm.Free)
 
-	metrics.mu.RLock()
-	defer metrics.mu.RUnlock()
+	metrics.mu.Lock()
+	defer metrics.mu.Unlock()
 
-	for _, metric := range metrics.Arr {
-		url := fmt.Sprintf("http://%s/update/%s/%s/", serverAddress, metric.MType, metric.ID)
-		switch metric.MType {
-		case entity.Counter:
-			url = fmt.Sprintf("%s%d", url, *metric.Delta)
-		case entity.Gauge:
-			url = fmt.Sprintf("%s%f", url, *metric.Value)
-		default:
-			log.Logger.Info().Msgf("invalid metric type: %s", metric.MType)
-			continue
-		}
+	metrics.Arr = append(metrics.Arr, entity.Metrics{ID: "TotalMemory", MType: entity.Gauge, Value: &total})
+	metrics.Arr = append(metrics.Arr, entity.Metrics{ID: "FreeMemory", MType: entity.Gauge, Value: &free})
 
-		err := utils.DoWithRetries(func() error {
-			_, err := client.R().Post(url)
-			return err
-		})
-
-		if err != nil {
-			log.Logger.Info().Err(err).Msg("error in making request")
-			continue
-		}
-
-		log.Logger.Info().Msg("metrics reported successfully")
-	}
-}
-
-func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) {
-	if len(metrics.Arr) == 0 {
-		log.Logger.Info().Msg("no metrics to report")
+	cpuUtil, err := cpu.Percent(0, false)
+	if err != nil || len(cpuUtil) == 0 {
+		log.Logger.Info().Err(err).Msg("cannot get cpu metrics")
 		return
 	}
 
+	metrics.mu.Lock()
+	defer metrics.mu.Unlock()
+
+	metrics.Arr = append(metrics.Arr, entity.Metrics{ID: "CPUutilization1", MType: entity.Gauge, Value: &cpuUtil[0]})
+}
+
+func reportMetricsWorker(log logger.Logger, serverAddress string, hashKey string, reportWorker <-chan []entity.Metrics) {
 	client := resty.New().
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Content-Type", "application/json")
 
-	url := fmt.Sprintf("http://%s/update/", serverAddress)
+	url := fmt.Sprintf("http://%s/updates/", serverAddress)
 
-	metrics.mu.RLock()
-	defer metrics.mu.RUnlock()
+	for metricsArr := range reportWorker {
+		if len(metricsArr) == 0 {
+			log.Logger.Info().Msg("no metrics to report")
+			continue
+		}
 
-	for _, metric := range metrics.Arr {
-		body, err := easyjson.Marshal(metric)
+		batch := entity.MetricsList(metricsArr)
+		body, err := easyjson.Marshal(&batch)
 		if err != nil {
 			log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
 			continue
@@ -194,13 +160,15 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 			continue
 		}
 
-		if metrics.HashKey != "" {
-			hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
+		if hashKey != "" {
+			hash := utils.GenerateHash(buf.Bytes(), hashKey)
 			client.SetHeader("HashSHA256", hash)
 		}
 
 		err = utils.DoWithRetries(func() error {
-			_, err = client.R().SetBody(buf.Bytes()).Post(url)
+			_, err = client.R().
+				SetBody(buf.Bytes()).
+				Post(url)
 			return err
 		})
 
@@ -213,57 +181,23 @@ func reportMetricsV2(log logger.Logger, serverAddress string, metrics *Metrics) 
 	}
 }
 
-func reportMetricsV3(log logger.Logger, serverAddress string, metrics *Metrics) {
-	if len(metrics.Arr) == 0 {
-		log.Logger.Info().Msg("no metrics to report")
-		return
-	}
+func checkServer(address string) error {
+	client := resty.New()
+	url := fmt.Sprintf("http://%s/healthz", address)
 
-	client := resty.New().
-		SetHeader("Content-Encoding", "gzip").
-		SetHeader("Content-Type", "application/json")
-
-	url := fmt.Sprintf("http://%s/updates/", serverAddress)
-
-	metrics.mu.RLock()
-	defer metrics.mu.RUnlock()
-
-	list := entity.MetricsList(metrics.Arr)
-	body, err := easyjson.Marshal(&list)
-	if err != nil {
-		log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
-		return
-	}
-
-	var buf bytes.Buffer
-	gzipWriter := gzip.NewWriter(&buf)
-	_, err = gzipWriter.Write(body)
-	if err != nil {
-		log.Logger.Info().Err(err).Msg("cannot compress body")
-		return
-	}
-	err = gzipWriter.Close()
-	if err != nil {
-		log.Logger.Info().Err(err).Msg("cannot close gzip writer")
-		return
-	}
-
-	if metrics.HashKey != "" {
-		hash := utils.GenerateHash(buf.Bytes(), metrics.HashKey)
-		client.SetHeader("HashSHA256", hash)
-	}
-
+	var err error
 	err = utils.DoWithRetries(func() error {
-		_, err = client.R().
-			SetBody(buf.Bytes()).
-			Post(url)
+		_, err = client.R().Get(url)
 		return err
 	})
 
-	if err != nil {
-		log.Logger.Info().Err(err).Msg("error in making request")
-		return
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return opErr.Err
 	}
+	return err
+}
 
-	log.Logger.Info().Msg("metrics reported successfully")
+func floatPtr(f float64) *float64 {
+	return &f
 }
