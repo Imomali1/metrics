@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/Imomali1/metrics/internal/api"
+	"github.com/Imomali1/metrics/internal/app/server/configs"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	store "github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
@@ -16,9 +17,11 @@ import (
 	"time"
 )
 
+const _timeout = 1 * time.Second
+
 func Run() {
-	var cfg Config
-	Parse(&cfg)
+	var cfg configs.Config
+	configs.Parse(&cfg)
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
 
@@ -33,6 +36,7 @@ func Run() {
 	handler := api.NewRouter(api.Options{
 		Logger:         log,
 		ServiceManager: service,
+		Conf:           cfg,
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -44,7 +48,7 @@ func Run() {
 	}
 	go func() {
 		err = server.ListenAndServe()
-		if errors.Is(err, http.ErrServerClosed) {
+		if !errors.Is(err, http.ErrServerClosed) {
 			log.Logger.Info().Err(err).Msg("failed to listen and serve http server")
 		}
 	}()
@@ -67,7 +71,7 @@ func Run() {
 	cancel()
 	wg.Wait()
 
-	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), _timeout)
 	defer cancel()
 	if err = server.Shutdown(ctxShutdown); err != nil {
 		log.Logger.Info().Err(err).Msg("error in shutting down server")
@@ -76,19 +80,22 @@ func Run() {
 	}
 }
 
-func initStorage(cfg Config) (*store.Storage, error) {
-	if cfg.FileStoragePath == "" {
-		return store.NewStorage()
-	}
+func initStorage(cfg configs.Config) (*store.Storage, error) {
+	dsn, filename := cfg.DatabaseDSN, cfg.FileStoragePath
 
 	var storageOptions []store.OptionsStorage
+	if dsn != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), _timeout)
+		defer cancel()
+		storageOptions = append(storageOptions, store.WithDB(ctx, dsn))
+	}
 
 	if cfg.StoreInterval == 0 {
-		storageOptions = append(storageOptions, store.WithFileStorage(cfg.FileStoragePath))
+		storageOptions = append(storageOptions, store.WithSyncWrite(filename))
 	}
 
 	if cfg.Restore {
-		storageOptions = append(storageOptions, store.RestoreFile(cfg.FileStoragePath))
+		storageOptions = append(storageOptions, store.RestoreFile(context.Background(), filename))
 	}
 
 	return store.NewStorage(storageOptions...)
