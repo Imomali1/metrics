@@ -19,7 +19,7 @@ type Config struct {
 const (
 	defaultServerAddress  = "localhost:8080"
 	defaultPollInterval   = 2
-	defaultReportInterval = 4
+	defaultReportInterval = 10
 	defaultLogLevel       = "info"
 	defaultServiceName    = "metrics_agent"
 )
@@ -29,7 +29,7 @@ func Parse(cfg *Config) {
 	pollInterval := flag.Int("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
 	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
 	hashKey := flag.String("k", "", "Ключ для подписи данных")
-	rateLimit := flag.Int("l", 10, "количество одновременно исходящих запросов на сервер")
+	rateLimit := flag.Int("l", 1, "количество одновременно исходящих запросов на сервер")
 	flag.Parse()
 
 	cfg.ServerAddress = getEnvString("ADDRESS", serverAddress)
