@@ -6,16 +6,16 @@ import (
 	"net/http"
 )
 
-func (h *MetricHandler) ListMetrics(ctx *gin.Context) {
+func (h *MetricHandler) PingDB(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
-	allMetrics, err := h.serviceManager.ListMetrics(c)
+	err := h.serviceManager.Ping(c)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
-		h.log.Logger.Info().Err(err).Msg("cannot list metrics")
+		h.log.Logger.Info().Err(err).Msg("cannot ping database")
 		return
 	}
 
-	ctx.HTML(http.StatusOK, "index.html", allMetrics)
+	ctx.Status(http.StatusOK)
 }

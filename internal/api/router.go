@@ -1,11 +1,13 @@
 package api
 
 import (
+	"github.com/Imomali1/metrics/internal/app/server/configs"
 	"github.com/Imomali1/metrics/internal/handlers"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/middlewares"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 type Handlers struct {
@@ -15,6 +17,7 @@ type Handlers struct {
 type Options struct {
 	Logger         logger.Logger
 	ServiceManager *services.Services
+	Conf           configs.Config
 }
 
 func NewRouter(options Options) *gin.Engine {
@@ -24,14 +27,21 @@ func NewRouter(options Options) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(middlewares.ReqRespLogger(options.Logger))
 	router.Use(middlewares.CompressResponse(), middlewares.DecompressRequest())
+	router.Use(middlewares.ValidateHash(options.Logger, options.Conf.HashKey))
 
 	h := Handlers{
-		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager.MetricService),
+		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager),
 	}
 
 	router.LoadHTMLGlob("static/templates/*.html")
 
 	router.GET("/", h.MetricHandler.ListMetrics)
+
+	router.GET("/ping", h.MetricHandler.PingDB)
+
+	router.GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusOK)
+	})
 
 	updateRoutes := router.Group("/update")
 	{
@@ -40,6 +50,11 @@ func NewRouter(options Options) *gin.Engine {
 
 		// v2 update handler using JSON
 		updateRoutes.POST("/", h.MetricHandler.UpdateMetricValueJSON)
+	}
+
+	updatesRoute := router.Group("/updates")
+	{
+		updatesRoute.POST("/", h.MetricHandler.Updates)
 	}
 
 	getValueRoutes := router.Group("/value")
