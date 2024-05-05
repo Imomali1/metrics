@@ -10,7 +10,7 @@ import (
 	"net/http"
 )
 
-func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
+func (h *MetricHandler) Updates(ctx *gin.Context) {
 	ct := ctx.GetHeader("Content-Type")
 	if ct != "application/json" {
 		ctx.AbortWithStatus(http.StatusBadRequest)
@@ -25,30 +25,40 @@ func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
 		return
 	}
 
-	var metrics entity.Metrics
-	err = easyjson.Unmarshal(body, &metrics)
+	var batch entity.MetricsList
+	err = easyjson.Unmarshal(body, &batch)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		h.log.Logger.Info().Err(err).Msg("cannot unmarshal json")
 		return
 	}
 
-	if metrics.MType != entity.Gauge && metrics.MType != entity.Counter {
-		err = errors.New("invalid metric type")
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		h.log.Logger.Info().Err(err).Send()
-		return
+	for i, metrics := range batch {
+		switch metrics.MType {
+		case entity.Counter:
+			h.log.Logger.Info().Msgf("#%d counter %s %d", i+1, metrics.ID, *metrics.Delta)
+		case entity.Gauge:
+			h.log.Logger.Info().Msgf("#%d gauge %s %f", i+1, metrics.ID, *metrics.Value)
+		}
+
+		if metrics.MType != entity.Gauge && metrics.MType != entity.Counter {
+			err = errors.New("invalid metric type")
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			h.log.Logger.Info().Err(err).Send()
+			return
+		}
+
 	}
 
 	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
-	err = h.serviceManager.UpdateMetrics(c, []entity.Metrics{metrics})
+	err = h.serviceManager.UpdateMetrics(c, batch)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
-		h.log.Logger.Info().Err(err).Msgf("cannot update %s metric value", metrics.MType)
+		h.log.Logger.Info().Err(err).Msg("cannot update batch of metric value")
 		return
 	}
 
-	ctx.JSON(http.StatusOK, metrics)
+	ctx.JSON(http.StatusOK, batch)
 }

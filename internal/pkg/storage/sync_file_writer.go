@@ -7,26 +7,34 @@ import (
 	"os"
 )
 
-type fileStorage struct {
+type fileWriter struct {
 	file   *os.File
 	writer *bufio.Writer
 }
 
-func newFileStorage(path string) (*fileStorage, error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+func newFileWriter(filename string) (*fileWriter, error) {
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return nil, err
 	}
 
-	return &fileStorage{
+	return &fileWriter{
 		file:   file,
 		writer: bufio.NewWriter(file),
 	}, nil
 }
 
-func (f *fileStorage) WriteMetrics(metrics []entity.Metrics) error {
-	for _, metric := range metrics {
-		data, err := easyjson.Marshal(metric)
+func (f *fileWriter) Write(batch entity.MetricsList) error {
+	if err := f.file.Truncate(0); err != nil {
+		return err
+	}
+
+	if _, err := f.file.Seek(0, 0); err != nil {
+		return err
+	}
+
+	for _, one := range batch {
+		data, err := easyjson.Marshal(one)
 		if err != nil {
 			return err
 		}
