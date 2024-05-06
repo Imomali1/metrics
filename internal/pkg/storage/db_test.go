@@ -85,7 +85,7 @@ func newTestDB() (db testDB, err error) {
 func (db *testDB) close() {
 	if db != nil {
 		db.pool.Close()
-		db.container.Terminate(context.Background())
+		_ = db.container.Terminate(context.Background())
 	}
 }
 
@@ -237,8 +237,8 @@ func Test_dbStorage_GetAll(t *testing.T) {
 		{
 			name: "valid",
 			updateFunc: func() {
-				s.DeleteAll(ctx)
-				s.Update(ctx, metrics)
+				_ = s.DeleteAll(ctx)
+				_ = s.Update(ctx, metrics)
 			},
 			want:    metrics,
 			wantErr: false,
@@ -246,7 +246,7 @@ func Test_dbStorage_GetAll(t *testing.T) {
 		{
 			name: "empty",
 			updateFunc: func() {
-				s.DeleteAll(ctx)
+				_ = s.DeleteAll(ctx)
 			},
 			want:    entity.MetricsList{},
 			wantErr: false,
@@ -257,8 +257,7 @@ func Test_dbStorage_GetAll(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.updateFunc()
 
-			got := entity.MetricsList{}
-			got, err = s.GetAll(ctx)
+			got, err := s.GetAll(ctx)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -282,7 +281,7 @@ func Test_dbStorage_GetOne(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, s)
 
-	s.Update(ctx, entity.MetricsList{
+	_ = s.Update(ctx, entity.MetricsList{
 		{
 			ID:    "gauge1",
 			MType: entity.Gauge,
@@ -372,8 +371,7 @@ func Test_dbStorage_GetOne(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := entity.Metrics{}
-			got, err = s.GetOne(ctx, tt.args.id, tt.args.mType)
+			got, err := s.GetOne(ctx, tt.args.id, tt.args.mType)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -426,7 +424,7 @@ func Test_dbStorage_DeleteOne(t *testing.T) {
 				id:    "gauge1",
 				mType: entity.Gauge,
 			},
-			updateFunc: func() { s.Update(ctx, metrics) },
+			updateFunc: func() { _ = s.Update(ctx, metrics) },
 			wantErr:    false,
 		},
 		{
@@ -453,7 +451,7 @@ func Test_dbStorage_DeleteOne(t *testing.T) {
 				id:    "gauge1",
 				mType: entity.Gauge,
 			},
-			updateFunc: func() { s.DeleteAll(ctx) },
+			updateFunc: func() { _ = s.DeleteAll(ctx) },
 			wantErr:    false,
 		},
 	}

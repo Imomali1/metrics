@@ -26,7 +26,7 @@ func Test_memoryStorage_GetAll(t *testing.T) {
 		{ID: "counter1", MType: entity.Counter, Delta: utils.Ptr(int64(123))},
 	}
 
-	s.Update(ctx, metrics)
+	_ = s.Update(ctx, metrics)
 
 	got, err := s.GetAll(ctx)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func Test_memoryStorage_GetOne(t *testing.T) {
 		{ID: "counter1", MType: entity.Counter, Delta: utils.Ptr(int64(123))},
 	}
 
-	s.Update(ctx, metrics)
+	_ = s.Update(ctx, metrics)
 
 	type args struct {
 		id    string
@@ -178,7 +178,7 @@ func Test_memoryStorage_DeleteOne(t *testing.T) {
 
 	s := newMemoryStorage()
 
-	s.Update(ctx, entity.MetricsList{
+	_ = s.Update(ctx, entity.MetricsList{
 		{ID: "gauge1", MType: entity.Gauge, Value: utils.Ptr(123.0)},
 		{ID: "counter1", MType: entity.Counter, Delta: utils.Ptr(int64(123))},
 	})
@@ -266,7 +266,7 @@ func Test_memoryStorage_DeleteAll(t *testing.T) {
 
 	s := newMemoryStorage()
 
-	s.Update(ctx, entity.MetricsList{
+	_ = s.Update(ctx, entity.MetricsList{
 		{ID: "gauge1", MType: entity.Gauge, Value: utils.Ptr(123.0)},
 		{ID: "counter1", MType: entity.Counter, Delta: utils.Ptr(int64(123))},
 	})
