@@ -2,11 +2,13 @@ package middlewares
 
 import (
 	"bytes"
-	"github.com/Imomali1/metrics/internal/pkg/logger"
-	"github.com/Imomali1/metrics/internal/pkg/utils"
-	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
 type responseBodyWriter struct {

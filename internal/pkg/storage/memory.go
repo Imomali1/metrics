@@ -3,8 +3,9 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/Imomali1/metrics/internal/entity"
 	"sync"
+
+	"github.com/Imomali1/metrics/internal/entity"
 )
 
 type memoryStorage struct {
@@ -20,7 +21,29 @@ func newMemoryStorage() *memoryStorage {
 	}
 }
 
-func (s *memoryStorage) Update(ctx context.Context, batch entity.MetricsList) error {
+func (s *memoryStorage) DeleteOne(_ context.Context, id string, mType string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch mType {
+	case entity.Gauge:
+		delete(s.gaugeStorage, id)
+	case entity.Counter:
+		delete(s.counterStorage, id)
+	default:
+		return fmt.Errorf("unknown type: %s", mType)
+	}
+	return nil
+}
+
+func (s *memoryStorage) DeleteAll(_ context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.counterStorage = make(map[string]int64)
+	s.gaugeStorage = make(map[string]float64)
+	return nil
+}
+
+func (s *memoryStorage) Update(_ context.Context, batch entity.MetricsList) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, one := range batch {
@@ -36,7 +59,7 @@ func (s *memoryStorage) Update(ctx context.Context, batch entity.MetricsList) er
 	return nil
 }
 
-func (s *memoryStorage) GetOne(ctx context.Context, id string, mType string) (entity.Metrics, error) {
+func (s *memoryStorage) GetOne(_ context.Context, id string, mType string) (entity.Metrics, error) {
 	var metric = entity.Metrics{ID: id, MType: mType}
 
 	s.mu.RLock()
@@ -57,7 +80,7 @@ func (s *memoryStorage) GetOne(ctx context.Context, id string, mType string) (en
 	return metric, nil
 }
 
-func (s *memoryStorage) GetAll(ctx context.Context) (entity.MetricsList, error) {
+func (s *memoryStorage) GetAll(_ context.Context) (entity.MetricsList, error) {
 	allMetrics := make(entity.MetricsList, len(s.counterStorage)+len(s.gaugeStorage))
 	idx := 0
 
@@ -87,7 +110,7 @@ func (s *memoryStorage) GetAll(ctx context.Context) (entity.MetricsList, error) 
 	return allMetrics, nil
 }
 
-func (s *memoryStorage) Ping(ctx context.Context) error {
+func (s *memoryStorage) Ping(_ context.Context) error {
 	return fmt.Errorf("storage instance is not db, it is memory based")
 }
 

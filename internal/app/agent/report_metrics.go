@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"sync"
+	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/mailru/easyjson"
+
 	"github.com/Imomali1/metrics/internal/app/agent/configs"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
-	"github.com/go-resty/resty/v2"
-	"github.com/mailru/easyjson"
-	"sync"
-	"time"
 )
 
 type ReportTask struct {

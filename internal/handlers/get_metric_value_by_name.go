@@ -3,10 +3,12 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/Imomali1/metrics/internal/entity"
 )
 
 func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {

@@ -3,14 +3,16 @@ package agent
 import (
 	"errors"
 	"fmt"
+	"net"
+	"os"
+	"sync"
+
+	"github.com/go-resty/resty/v2"
+
 	"github.com/Imomali1/metrics/internal/app/agent/configs"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
-	"github.com/go-resty/resty/v2"
-	"net"
-	"os"
-	"sync"
 )
 
 type Metrics struct {

@@ -43,10 +43,11 @@ func Parse(cfg *Config) {
 }
 
 func getEnvString(key string, argumentValue *string) string {
-	if os.Getenv(key) != "" {
-		return os.Getenv(key)
+	envValue, exists := os.LookupEnv(key)
+	if !exists {
+		return *argumentValue
 	}
-	return *argumentValue
+	return envValue
 }
 
 func getEnvInt(key string, argumentValue *int) int {

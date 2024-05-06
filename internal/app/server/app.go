@@ -3,6 +3,14 @@ package server
 import (
 	"context"
 	"errors"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"time"
+
+	_ "net/http/pprof"
+
 	"github.com/Imomali1/metrics/internal/api"
 	"github.com/Imomali1/metrics/internal/app/server/configs"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
@@ -10,11 +18,6 @@ import (
 	"github.com/Imomali1/metrics/internal/repository"
 	"github.com/Imomali1/metrics/internal/services"
 	"github.com/Imomali1/metrics/internal/tasks"
-	"net/http"
-	"os"
-	"os/signal"
-	"sync"
-	"time"
 )
 
 const _timeout = 1 * time.Second

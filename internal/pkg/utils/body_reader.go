@@ -14,7 +14,7 @@ func ReadAll(r io.Reader) ([]byte, error) {
 			if err == io.EOF {
 				err = nil
 			}
-			return b, err
+			return b[:len(b):len(b)], err
 		}
 
 		if len(b) == cap(b) {

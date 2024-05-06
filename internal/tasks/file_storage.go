@@ -3,10 +3,12 @@ package tasks
 import (
 	"bufio"
 	"context"
-	store "github.com/Imomali1/metrics/internal/pkg/storage"
-	"github.com/mailru/easyjson"
 	"os"
 	"time"
+
+	"github.com/mailru/easyjson"
+
+	store "github.com/Imomali1/metrics/internal/pkg/storage"
 )
 
 type FileWriter struct {

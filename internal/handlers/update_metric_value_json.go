@@ -3,11 +3,13 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/utils"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mailru/easyjson"
-	"net/http"
+
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
 func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {

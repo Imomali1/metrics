@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/utils"
+	"log"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
+
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
 type dbStorage struct {
@@ -71,9 +73,6 @@ func createTable(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, statement := range statements {
 		_, err = tx.Exec(ctx, statement)
 		if err != nil {
-			if errRollBack := tx.Rollback(ctx); errRollBack != nil {
-				return fmt.Errorf("exec error: %w; rollback error: %w", err, errRollBack)
-			}
 			return err
 		}
 	}
@@ -216,6 +215,25 @@ func (s *dbStorage) GetAll(ctx context.Context) (entity.MetricsList, error) {
 	}
 
 	return list, nil
+}
+
+func (s *dbStorage) DeleteOne(ctx context.Context, id, mType string) error {
+	if mType != entity.Counter && mType != entity.Gauge {
+		return entity.ErrInvalidMetricType
+	}
+	query := fmt.Sprintf(`DELETE FROM %s WHERE name = $1`, mType)
+	_, err := s.pool.Exec(ctx, query, id)
+	return err
+}
+
+func (s *dbStorage) DeleteAll(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, "DELETE FROM counter")
+	if err != nil {
+		return err
+	}
+
+	_, err = s.pool.Exec(ctx, "DELETE FROM gauge")
+	return err
 }
 
 func (s *dbStorage) Ping(ctx context.Context) error {

@@ -2,9 +2,11 @@ package storage
 
 import (
 	"bufio"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/mailru/easyjson"
 	"os"
+
+	"github.com/mailru/easyjson"
+
+	"github.com/Imomali1/metrics/internal/entity"
 )
 
 type fileWriter struct {

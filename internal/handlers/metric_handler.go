@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"time"
+
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/services"
-	"time"
 )
 
 const _timeout = 1 * time.Second
