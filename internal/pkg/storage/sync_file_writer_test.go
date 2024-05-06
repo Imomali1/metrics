@@ -3,7 +3,6 @@ package storage
 import (
 	"bufio"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/Imomali1/metrics/internal/entity"
@@ -39,27 +38,5 @@ func Test_fileWriter_Write(t *testing.T) {
 }
 
 func Test_newFileWriter(t *testing.T) {
-	type args struct {
-		filename string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *fileWriter
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := newFileWriter(tt.args.filename)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newFileWriter() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newFileWriter() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
+
 }
