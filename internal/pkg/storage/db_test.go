@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -21,18 +22,21 @@ type testDB struct {
 	container testcontainers.Container
 }
 
-func newTestDB() (db testDB, err error) {
+func newTestDB(opts ...testDBOption) (db testDB, err error) {
 	ctx := context.Background()
 
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres:alpine",
 		ExposedPorts: []string{"5432/tcp"},
+		Hostname:     "test-postgres",
 		Env: map[string]string{
 			"POSTGRES_DB":       "testdb",
 			"POSTGRES_USER":     "user",
 			"POSTGRES_PASSWORD": "password",
 		},
-		WaitingFor: wait.ForListeningPort("5432/tcp"),
+		WaitingFor: wait.
+			ForListeningPort("5432/tcp").
+			WithStartupTimeout(2 * time.Minute),
 	}
 
 	postgresContainer, err := testcontainers.GenericContainer(ctx,
@@ -56,36 +60,68 @@ func newTestDB() (db testDB, err error) {
 
 	dsn := fmt.Sprintf("postgres://user:password@%s:%s/testdb", ipAddress, mappedPort.Port())
 
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		return db, fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	var pool *pgxpool.Pool
-	err = utils.DoWithRetries(func() error {
-		pool, err = pgxpool.NewWithConfig(ctx, config)
-		return err
-	})
-
-	if err != nil {
-		return db, fmt.Errorf("failed to connect to pool: %w", err)
-	}
-
-	if err = pool.Ping(ctx); err != nil {
-		return db, fmt.Errorf("failed to ping pool: %w", err)
-	}
-
-	return testDB{
+	db = testDB{
 		dsn:       dsn,
-		pool:      pool,
 		container: postgresContainer,
-	}, err
+	}
+
+	for _, opt := range opts {
+		err = opt(&db)
+		if err != nil {
+			return testDB{}, err
+		}
+	}
+
+	return db, err
+}
+
+type testDBOption func(db *testDB) error
+
+func WithPool() testDBOption {
+	return func(db *testDB) error {
+		ctx := context.Background()
+
+		config, err := pgxpool.ParseConfig(db.dsn)
+		if err != nil {
+			return fmt.Errorf("failed to parse config: %w", err)
+		}
+
+		var pool *pgxpool.Pool
+		err = utils.DoWithRetries(func() error {
+			pool, err = pgxpool.NewWithConfig(ctx, config)
+			return err
+		})
+
+		if err != nil {
+			return fmt.Errorf("failed to connect to pool: %w", err)
+		}
+
+		if err = pool.Ping(ctx); err != nil {
+			return fmt.Errorf("failed to ping pool: %w", err)
+		}
+
+		db.pool = pool
+
+		return nil
+	}
 }
 
 func (db *testDB) close() {
-	if db != nil {
+	if db == nil {
+		return
+	}
+
+	if db.pool != nil {
 		db.pool.Close()
-		_ = db.container.Terminate(context.Background())
+	}
+
+	if db.container == nil {
+		return
+	}
+
+	err := db.container.Terminate(context.Background())
+	if err != nil {
+		log.Printf("failed to terminate container: %v", err)
 	}
 }
 
@@ -135,7 +171,7 @@ func Test_newDBStorage(t *testing.T) {
 }
 
 func Test_createTable(t *testing.T) {
-	db, err := newTestDB()
+	db, err := newTestDB(WithPool())
 	defer db.close()
 	require.NoError(t, err)
 	require.NotNil(t, db.pool)
@@ -161,23 +197,33 @@ func Test_dbStorage_Update(t *testing.T) {
 	db, err := newTestDB()
 	defer db.close()
 	require.NoError(t, err)
-	require.NotNil(t, db.pool)
 
-	//ctx := context.Background()
+	ctx := context.Background()
+	s, err := newDBStorage(ctx, db.dsn)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
 		batch   entity.MetricsList
+		wanted  entity.MetricsList
 		wantErr bool
 	}{
 		{
 			name:    "zero length metrics",
 			batch:   entity.MetricsList{},
+			wanted:  entity.MetricsList{},
 			wantErr: false,
 		},
 		{
-			name: "normal metrics",
+			name: "valid gauge metrics",
 			batch: entity.MetricsList{
+				{
+					ID:    "gauge1",
+					MType: entity.Gauge,
+					Value: utils.Ptr(123.0),
+				},
+			},
+			wanted: entity.MetricsList{
 				{
 					ID:    "gauge1",
 					MType: entity.Gauge,
@@ -187,19 +233,112 @@ func Test_dbStorage_Update(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid",
-			batch:   entity.MetricsList{},
+			name: "valid counter metrics",
+			batch: entity.MetricsList{
+				{
+					ID:    "counter1",
+					MType: entity.Counter,
+					Delta: utils.Ptr(int64(123)),
+				},
+			},
+			wanted: entity.MetricsList{
+				{
+					ID:    "counter1",
+					MType: entity.Counter,
+					Delta: utils.Ptr(int64(123)),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid both metrics",
+			batch: entity.MetricsList{
+				{
+					ID:    "gauge1",
+					MType: entity.Gauge,
+					Value: utils.Ptr(123.0),
+				},
+				{
+					ID:    "counter1",
+					MType: entity.Counter,
+					Delta: utils.Ptr(int64(123)),
+				},
+			},
+			wanted: entity.MetricsList{
+				{
+					ID:    "gauge1",
+					MType: entity.Gauge,
+					Value: utils.Ptr(123.0),
+				},
+				{
+					ID:    "counter1",
+					MType: entity.Counter,
+					Delta: utils.Ptr(int64(123)),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "one invalid metrics",
+			batch: entity.MetricsList{
+				{
+					ID:    "invalid",
+					MType: "invalid",
+					Value: utils.Ptr(123.0),
+					Delta: utils.Ptr(int64(123)),
+				},
+				{
+					ID:    "counter1",
+					MType: entity.Counter,
+					Delta: utils.Ptr(int64(123)),
+				},
+			},
+			wanted: entity.MetricsList{
+				{
+					ID:    "counter1",
+					MType: entity.Counter,
+					Delta: utils.Ptr(int64(123)),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "both invalid metrics",
+			batch: entity.MetricsList{
+				{
+					ID:    "invalid",
+					MType: "invalid",
+					Value: utils.Ptr(123.0),
+					Delta: utils.Ptr(int64(123)),
+				},
+				{
+					ID:    "test",
+					MType: "test",
+					Value: utils.Ptr(123.0),
+					Delta: utils.Ptr(int64(123)),
+				},
+			},
+			wanted:  entity.MetricsList{},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//s := &dbStorage{
-			//	pool: tt.fields.pool,
-			//}
-			//if err := s.Update(tt.args.ctx, tt.args.batch); (err != nil) != tt.wantErr {
-			//	t.Errorf("Update() error = %v, wantErr %v", err, tt.wantErr)
-			//}
+			// Clean storage for test
+			err = s.DeleteAll(ctx)
+			require.NoError(t, err)
+
+			err = s.Update(ctx, tt.batch)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			var got entity.MetricsList
+			got, err = s.GetAll(ctx)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tt.wanted, got)
 		})
 	}
 }
@@ -470,7 +609,7 @@ func Test_dbStorage_DeleteOne(t *testing.T) {
 }
 
 func Test_dbStorage_Ping(t *testing.T) {
-	db, err := newTestDB()
+	db, err := newTestDB(WithPool())
 	defer db.close()
 	require.NoError(t, err)
 	require.NotNil(t, db.pool)
@@ -484,7 +623,7 @@ func Test_dbStorage_Ping(t *testing.T) {
 }
 
 func Test_dbStorage_Close(t *testing.T) {
-	db, err := newTestDB()
+	db, err := newTestDB(WithPool())
 	defer db.close()
 	require.NoError(t, err)
 	require.NotNil(t, db.pool)
