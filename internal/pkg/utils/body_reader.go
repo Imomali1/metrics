@@ -2,11 +2,12 @@ package utils
 
 import "io"
 
+// MaxBodySize - max count of bytes that reader can read.
+const MaxBodySize = 10 * 1024
+
+// ReadAll reads bytes from reader.
 func ReadAll(r io.Reader) ([]byte, error) {
-	// Максимальное количество байтов нужно изменить,
-	// если объём данных будет большим
-	const maxBodySize = 10 * 1024
-	b := make([]byte, 0, maxBodySize)
+	b := make([]byte, 0, MaxBodySize)
 	for {
 		n, err := r.Read(b[len(b):cap(b)])
 		b = b[:len(b)+n]

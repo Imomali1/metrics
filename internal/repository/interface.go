@@ -6,6 +6,7 @@ import (
 	"github.com/Imomali1/metrics/internal/entity"
 )
 
+// Repository interface can be used by UseCase.
 type Repository interface {
 	UpdateMetrics(context.Context, entity.MetricsList) error
 	GetMetrics(context.Context, entity.Metrics) (entity.Metrics, error)
