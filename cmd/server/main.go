@@ -1,9 +1,10 @@
 package main
 
 import (
+	"os"
+
 	app "github.com/Imomali1/metrics/internal/app/server"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
-	"os"
 )
 
 func main() {

@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"os"
+
+	"github.com/mailru/easyjson"
+
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/storage"
-	"github.com/mailru/easyjson"
-	"os"
 )
 
 func RestoreMetrics(ctx context.Context, filename string, store storage.Storage) error {

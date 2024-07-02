@@ -3,9 +3,10 @@ package tasks
 import (
 	"bufio"
 	"context"
-	"github.com/Imomali1/metrics/internal/entity"
 	"os"
 	"time"
+
+	"github.com/Imomali1/metrics/internal/entity"
 
 	"github.com/mailru/easyjson"
 

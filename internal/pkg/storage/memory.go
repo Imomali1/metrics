@@ -3,8 +3,9 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/Imomali1/metrics/internal/entity"
 	"sync"
+
+	"github.com/Imomali1/metrics/internal/entity"
 )
 
 type Memory struct {

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/utils"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
 type DB struct {

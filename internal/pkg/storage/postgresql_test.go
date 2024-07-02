@@ -3,10 +3,11 @@ package storage_test
 import (
 	"context"
 	"fmt"
-	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/Imomali1/metrics/internal/pkg/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"

@@ -3,12 +3,13 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/Imomali1/metrics/internal/pkg/file"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"time"
+
+	"github.com/Imomali1/metrics/internal/pkg/file"
 
 	_ "net/http/pprof"
 

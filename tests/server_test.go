@@ -2,19 +2,21 @@ package tests
 
 import (
 	"context"
-	"github.com/Imomali1/metrics/internal/api"
-	"github.com/Imomali1/metrics/internal/pkg/logger"
-	"github.com/Imomali1/metrics/internal/pkg/storage"
-	"github.com/Imomali1/metrics/internal/repository"
-	"github.com/Imomali1/metrics/internal/usecase"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
+
+	"github.com/Imomali1/metrics/internal/api"
+	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/Imomali1/metrics/internal/pkg/storage"
+	"github.com/Imomali1/metrics/internal/repository"
+	"github.com/Imomali1/metrics/internal/usecase"
 )
 
 func setupRouter() *gin.Engine {

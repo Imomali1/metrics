@@ -2,14 +2,16 @@ package api
 
 import (
 	"context"
+	"os"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
 	"github.com/Imomali1/metrics/internal/usecase"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
 func SetupRouterOptions() Options {

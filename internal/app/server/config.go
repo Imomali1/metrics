@@ -2,9 +2,10 @@ package server
 
 import (
 	"flag"
-	"github.com/Imomali1/metrics/internal/api"
 	"os"
 	"strconv"
+
+	"github.com/Imomali1/metrics/internal/api"
 )
 
 type Config struct {

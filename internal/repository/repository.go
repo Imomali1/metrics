@@ -2,13 +2,14 @@ package repository
 
 import (
 	"context"
+
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/file"
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 )
 
 type MetricsRepo struct {
-	store storage.Storage
+	store          storage.Storage
 	syncFileWriter file.SyncFileWriter
 }
 
@@ -17,7 +18,7 @@ func New(
 	syncFileWriter file.SyncFileWriter,
 ) Repository {
 	return &MetricsRepo{
-		store: store,
+		store:          store,
 		syncFileWriter: syncFileWriter,
 	}
 }
