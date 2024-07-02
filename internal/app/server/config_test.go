@@ -1,4 +1,4 @@
-package configs
+package server
 
 import (
 	"os"
@@ -10,8 +10,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	cfg := Config{}
-	Parse(&cfg)
+	cfg := LoadConfig()
 	require.NotEmpty(t, cfg)
 }
 

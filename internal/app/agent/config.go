@@ -1,4 +1,4 @@
-package configs
+package agent
 
 import (
 	"flag"
@@ -24,7 +24,7 @@ const (
 	defaultServiceName    = "metrics_agent"
 )
 
-func Parse(cfg *Config) {
+func LoadConfig() (cfg Config) {
 	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
 	pollInterval := flag.Int("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
 	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
@@ -40,6 +40,8 @@ func Parse(cfg *Config) {
 
 	cfg.LogLevel = defaultLogLevel
 	cfg.ServiceName = defaultServiceName
+
+	return cfg
 }
 
 func getEnvString(key string, argumentValue *string) string {

@@ -55,7 +55,7 @@ func (h *MetricHandler) Updates(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
-	err = h.serviceManager.UpdateMetrics(c, batch)
+	err = h.uc.UpdateMetrics(c, batch)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		h.log.Logger.Info().Err(err).Msg("cannot update batch of metric value")

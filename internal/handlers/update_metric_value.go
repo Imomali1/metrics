@@ -11,14 +11,9 @@ import (
 	"github.com/Imomali1/metrics/internal/entity"
 )
 
-const (
-	gauge   = "gauge"
-	counter = "counter"
-)
-
 func (h *MetricHandler) UpdateMetricValue(ctx *gin.Context) {
 	metricType := ctx.Param("type")
-	if metricType != gauge && metricType != counter {
+	if metricType != entity.Gauge && metricType != entity.Counter {
 		err := errors.New("invalid metric type")
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		h.log.Logger.Info().Err(err).Send()
@@ -39,20 +34,21 @@ func (h *MetricHandler) UpdateMetricValue(ctx *gin.Context) {
 	metricValue := ctx.Param("value")
 
 	switch metricType {
-	case gauge:
+	case entity.Gauge:
 		*value, err = strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusBadRequest)
 			h.log.Logger.Info().Err(err).Msg("gauge metric value is not float64")
 			return
 		}
-	case counter:
+	case entity.Counter:
 		*delta, err = strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusBadRequest)
 			h.log.Logger.Info().Err(err).Msg("counter metric value is not int64")
 			return
 		}
+	default:
 	}
 
 	metrics := entity.Metrics{
@@ -65,7 +61,7 @@ func (h *MetricHandler) UpdateMetricValue(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
-	err = h.serviceManager.UpdateMetrics(c, []entity.Metrics{metrics})
+	err = h.uc.UpdateMetrics(c, []entity.Metrics{metrics})
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		h.log.Logger.Info().Err(err).Msgf("cannot update %s metric value", metrics.MType)

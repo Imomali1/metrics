@@ -1,8 +1,9 @@
-package storage
+package storage_test
 
 import (
 	"context"
 	"fmt"
+	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"log"
 	"testing"
 	"time"
@@ -16,13 +17,16 @@ import (
 	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
-type testDB struct {
-	dsn       string
-	pool      *pgxpool.Pool
-	container testcontainers.Container
+var (
+	DSN           string
+	TestContainer testcontainers.Container
+)
+
+func init() {
+	startTestContainer()
 }
 
-func newTestDB(opts ...testDBOption) (db testDB, err error) {
+func startTestContainer() {
 	ctx := context.Background()
 
 	req := testcontainers.ContainerRequest{
@@ -45,91 +49,66 @@ func newTestDB(opts ...testDBOption) (db testDB, err error) {
 			Started:          true,
 		})
 	if err != nil {
-		return db, fmt.Errorf("failed to start container: %w", err)
+		log.Fatal(fmt.Errorf("failed to start container: %w", err))
 	}
 
 	ipAddress, err := postgresContainer.Host(ctx)
 	if err != nil {
-		return db, fmt.Errorf("failed to get container host: %w", err)
+		log.Fatal(fmt.Errorf("failed to get container host: %w", err))
 	}
 
 	mappedPort, err := postgresContainer.MappedPort(ctx, "5432")
 	if err != nil {
-		return db, fmt.Errorf("failed to get mapped port: %w", err)
+		log.Fatal(fmt.Errorf("failed to get mapped port: %w", err))
 	}
 
-	dsn := fmt.Sprintf("postgres://user:password@%s:%s/testdb", ipAddress, mappedPort.Port())
+	DSN = fmt.Sprintf("postgres://user:password@%s:%s/testdb", ipAddress, mappedPort.Port())
 
-	db = testDB{
-		dsn:       dsn,
-		container: postgresContainer,
-	}
-
-	for _, opt := range opts {
-		err = opt(&db)
-		if err != nil {
-			return testDB{}, err
-		}
-	}
-
-	return db, err
+	TestContainer = postgresContainer
 }
 
-type testDBOption func(db *testDB) error
-
-func WithPool() testDBOption {
-	return func(db *testDB) error {
-		ctx := context.Background()
-
-		config, err := pgxpool.ParseConfig(db.dsn)
-		if err != nil {
-			return fmt.Errorf("failed to parse config: %w", err)
-		}
-
-		var pool *pgxpool.Pool
-		err = utils.DoWithRetries(func() error {
-			pool, err = pgxpool.NewWithConfig(ctx, config)
-			return err
-		})
-
-		if err != nil {
-			return fmt.Errorf("failed to connect to pool: %w", err)
-		}
-
-		if err = pool.Ping(ctx); err != nil {
-			return fmt.Errorf("failed to ping pool: %w", err)
-		}
-
-		db.pool = pool
-
-		return nil
+func stopTestContainer() {
+	ctx := context.Background()
+	if err := TestContainer.Terminate(ctx); err != nil {
+		log.Fatal(fmt.Errorf("failed to terminate container: %w", err))
 	}
+	TestContainer = nil
+	DSN = ""
 }
 
-func (db *testDB) close() {
-	if db == nil {
-		return
-	}
+func restartTestContainer() {
+	stopTestContainer()
+	startTestContainer()
+}
 
-	if db.pool != nil {
-		db.pool.Close()
-	}
+func createTestPool() (*pgxpool.Pool, error) {
+	restartTestContainer()
 
-	if db.container == nil {
-		return
-	}
+	ctx := context.Background()
 
-	err := db.container.Terminate(context.Background())
+	config, err := pgxpool.ParseConfig(DSN)
 	if err != nil {
-		log.Printf("failed to terminate container: %v", err)
+		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
+
+	var pool *pgxpool.Pool
+	err = utils.DoWithRetries(func() error {
+		pool, err = pgxpool.NewWithConfig(ctx, config)
+		return err
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Pool: %w", err)
+	}
+
+	if err = pool.Ping(ctx); err != nil {
+		return nil, fmt.Errorf("failed to ping Pool: %w", err)
+	}
+
+	return pool, nil
 }
 
 func Test_newDBStorage(t *testing.T) {
-	db, err := newTestDB()
-	defer db.close()
-	require.NoError(t, err)
-
 	tests := []struct {
 		name    string
 		dsn     string
@@ -137,27 +116,23 @@ func Test_newDBStorage(t *testing.T) {
 	}{
 		{
 			name:    "valid dsn",
-			dsn:     db.dsn,
+			dsn:     DSN,
 			wantErr: false,
 		},
 		{
-			name:    "invalid dsn",
+			name:    "empty dsn",
 			dsn:     "",
 			wantErr: true,
 		},
 		{
 			name:    "not existing database",
-			dsn:     db.dsn + "non-existing",
+			dsn:     DSN + "non-existing",
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-
-			var dbs *dbStorage
-			dbs, err = newDBStorage(ctx, tt.dsn)
+			db, err := storage.NewDB(context.Background(), tt.dsn)
 			if tt.wantErr {
 				require.Error(t, err)
 				t.Log(err)
@@ -165,16 +140,18 @@ func Test_newDBStorage(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.NotNil(t, dbs)
+			require.NotNil(t, db)
+
+			err = db.Ping(context.Background())
+			require.NoError(t, err)
 		})
 	}
 }
 
 func Test_createTable(t *testing.T) {
-	db, err := newTestDB(WithPool())
-	defer db.close()
+	pool, err := createTestPool()
 	require.NoError(t, err)
-	require.NotNil(t, db.pool)
+	require.NotNil(t, pool)
 
 	tests := []struct {
 		name    string
@@ -187,19 +164,15 @@ func Test_createTable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err = createTable(context.Background(), db.pool)
+			err = storage.CreateTable(context.Background(), pool)
 			require.NoError(t, err)
 		})
 	}
 }
 
 func Test_dbStorage_Update(t *testing.T) {
-	db, err := newTestDB()
-	defer db.close()
-	require.NoError(t, err)
-
 	ctx := context.Background()
-	s, err := newDBStorage(ctx, db.dsn)
+	db, err := storage.NewDB(ctx, DSN)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -325,10 +298,10 @@ func Test_dbStorage_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean storage for test
-			err = s.DeleteAll(ctx)
+			err = db.DeleteAll(ctx)
 			require.NoError(t, err)
 
-			err = s.Update(ctx, tt.batch)
+			err = db.Update(ctx, tt.batch)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -336,7 +309,7 @@ func Test_dbStorage_Update(t *testing.T) {
 			require.NoError(t, err)
 
 			var got entity.MetricsList
-			got, err = s.GetAll(ctx)
+			got, err = db.GetAll(ctx)
 			require.NoError(t, err)
 			require.ElementsMatch(t, tt.wanted, got)
 		})
@@ -344,15 +317,11 @@ func Test_dbStorage_Update(t *testing.T) {
 }
 
 func Test_dbStorage_GetAll(t *testing.T) {
-	db, err := newTestDB()
-	defer db.close()
-	require.NoError(t, err)
-
 	ctx := context.Background()
 
-	s, err := newDBStorage(ctx, db.dsn)
+	db, err := storage.NewDB(ctx, DSN)
 	require.NoError(t, err)
-	require.NotNil(t, s)
+	require.NotNil(t, db)
 
 	metrics := entity.MetricsList{
 		{
@@ -376,8 +345,8 @@ func Test_dbStorage_GetAll(t *testing.T) {
 		{
 			name: "valid",
 			updateFunc: func() {
-				_ = s.DeleteAll(ctx)
-				_ = s.Update(ctx, metrics)
+				_ = db.DeleteAll(ctx)
+				_ = db.Update(ctx, metrics)
 			},
 			want:    metrics,
 			wantErr: false,
@@ -385,7 +354,7 @@ func Test_dbStorage_GetAll(t *testing.T) {
 		{
 			name: "empty",
 			updateFunc: func() {
-				_ = s.DeleteAll(ctx)
+				_ = db.DeleteAll(ctx)
 			},
 			want:    entity.MetricsList{},
 			wantErr: false,
@@ -396,7 +365,7 @@ func Test_dbStorage_GetAll(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.updateFunc()
 
-			got, err := s.GetAll(ctx)
+			got, err := db.GetAll(ctx)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -410,17 +379,13 @@ func Test_dbStorage_GetAll(t *testing.T) {
 }
 
 func Test_dbStorage_GetOne(t *testing.T) {
-	db, err := newTestDB()
-	defer db.close()
-	require.NoError(t, err)
-
 	ctx := context.Background()
 
-	s, err := newDBStorage(ctx, db.dsn)
+	db, err := storage.NewDB(ctx, DSN)
 	require.NoError(t, err)
-	require.NotNil(t, s)
+	require.NotNil(t, db)
 
-	_ = s.Update(ctx, entity.MetricsList{
+	_ = db.Update(ctx, entity.MetricsList{
 		{
 			ID:    "gauge1",
 			MType: entity.Gauge,
@@ -510,7 +475,7 @@ func Test_dbStorage_GetOne(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.GetOne(ctx, tt.args.id, tt.args.mType)
+			got, err := db.GetOne(ctx, tt.args.id, tt.args.mType)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -524,15 +489,11 @@ func Test_dbStorage_GetOne(t *testing.T) {
 }
 
 func Test_dbStorage_DeleteOne(t *testing.T) {
-	db, err := newTestDB()
-	defer db.close()
-	require.NoError(t, err)
-
 	ctx := context.Background()
 
-	s, err := newDBStorage(ctx, db.dsn)
+	db, err := storage.NewDB(ctx, DSN)
 	require.NoError(t, err)
-	require.NotNil(t, s)
+	require.NotNil(t, db)
 
 	metrics := entity.MetricsList{
 		{
@@ -563,7 +524,7 @@ func Test_dbStorage_DeleteOne(t *testing.T) {
 				id:    "gauge1",
 				mType: entity.Gauge,
 			},
-			updateFunc: func() { _ = s.Update(ctx, metrics) },
+			updateFunc: func() { _ = db.Update(ctx, metrics) },
 			wantErr:    false,
 		},
 		{
@@ -590,14 +551,14 @@ func Test_dbStorage_DeleteOne(t *testing.T) {
 				id:    "gauge1",
 				mType: entity.Gauge,
 			},
-			updateFunc: func() { _ = s.DeleteAll(ctx) },
+			updateFunc: func() { _ = db.DeleteAll(ctx) },
 			wantErr:    false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.updateFunc()
-			err = s.DeleteOne(ctx, tt.args.id, tt.args.mType)
+			err = db.DeleteOne(ctx, tt.args.id, tt.args.mType)
 			if tt.wantErr {
 				t.Log(err)
 				require.Error(t, err)
@@ -609,13 +570,12 @@ func Test_dbStorage_DeleteOne(t *testing.T) {
 }
 
 func Test_dbStorage_Ping(t *testing.T) {
-	db, err := newTestDB(WithPool())
-	defer db.close()
+	pool, err := createTestPool()
 	require.NoError(t, err)
-	require.NotNil(t, db.pool)
+	require.NotNil(t, pool)
 
-	s := &dbStorage{
-		pool: db.pool,
+	s := &storage.DB{
+		Pool: pool,
 	}
 
 	err = s.Ping(context.Background())
@@ -623,13 +583,12 @@ func Test_dbStorage_Ping(t *testing.T) {
 }
 
 func Test_dbStorage_Close(t *testing.T) {
-	db, err := newTestDB(WithPool())
-	defer db.close()
+	pool, err := createTestPool()
 	require.NoError(t, err)
-	require.NotNil(t, db.pool)
+	require.NotNil(t, pool)
 
-	s := &dbStorage{
-		pool: db.pool,
+	s := &storage.DB{
+		Pool: pool,
 	}
 
 	s.Close()

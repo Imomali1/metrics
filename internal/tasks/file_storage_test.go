@@ -3,6 +3,7 @@ package tasks
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/mailru/easyjson"
@@ -48,7 +49,7 @@ func TestNewFileWriter(t *testing.T) {
 	}
 }
 
-func TestFileWriter_WriteAllMetrics(t *testing.T) {
+func TestWriteMetricsToFile(t *testing.T) {
 	metrics := entity.MetricsList{
 		{ID: "Gauge1", MType: entity.Gauge, Value: utils.Ptr(123.0)},
 		{ID: "Counter1", MType: entity.Counter, Delta: utils.Ptr(int64(123))},
@@ -56,7 +57,7 @@ func TestFileWriter_WriteAllMetrics(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		store   storage.IStorage
+		store   storage.Storage
 		wantErr bool
 	}{
 		{
@@ -79,7 +80,13 @@ func TestFileWriter_WriteAllMetrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := fw.WriteAllMetrics(tt.store)
+			storedMetrics, err := tt.store.GetAll(context.Background())
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			err = fw.WriteAllMetrics(storedMetrics)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

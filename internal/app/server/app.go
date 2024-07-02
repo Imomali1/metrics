@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/Imomali1/metrics/internal/pkg/file"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,34 +13,46 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Imomali1/metrics/internal/api"
-	"github.com/Imomali1/metrics/internal/app/server/configs"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
-	store "github.com/Imomali1/metrics/internal/pkg/storage"
+	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
-	"github.com/Imomali1/metrics/internal/services"
 	"github.com/Imomali1/metrics/internal/tasks"
+	"github.com/Imomali1/metrics/internal/usecase"
 )
 
-const _timeout = 1 * time.Second
+const (
+	_timeout          = 1 * time.Second
+	_htmlTemplatePath = "static/templates/*.html"
+)
 
-func Run() {
-	var cfg configs.Config
-	configs.Parse(&cfg)
-
-	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
-
-	storage, err := initStorage(cfg)
+func Run(cfg Config, log logger.Logger) {
+	store, err := storage.New(context.Background(), cfg.DatabaseDSN)
 	if err != nil {
-		log.Logger.Info().Err(err).Msg("failed to initialize storage")
-		return
+		log.Fatal().Err(err).Msg("failed to initialize storage")
 	}
 
-	repo := repository.New(storage)
-	service := services.New(repo)
+	if cfg.Restore {
+		err = file.RestoreMetrics(context.Background(), cfg.FileStoragePath, store)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to restore metrics")
+		}
+	}
+
+	var syncFileWriter file.SyncFileWriter
+	if cfg.StoreInterval == 0 {
+		syncFileWriter, err = file.NewSyncMetricsWriter(cfg.FileStoragePath)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to initialize sync file writer")
+		}
+	}
+
+	repo := repository.New(store, syncFileWriter)
+	uc := usecase.New(repo)
 	handler := api.NewRouter(api.Options{
-		Logger:         log,
-		ServiceManager: service,
-		Conf:           cfg,
+		Logger:           log,
+		UseCase:          uc,
+		Cfg:              cfg.API,
+		HTMLTemplatePath: _htmlTemplatePath,
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -51,8 +64,8 @@ func Run() {
 	}
 	go func() {
 		err = server.ListenAndServe()
-		if !errors.Is(err, http.ErrServerClosed) {
-			log.Logger.Info().Err(err).Msg("failed to listen and serve http server")
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Err(err).Msg("failed to listen and serve http server")
 		}
 	}()
 
@@ -61,8 +74,8 @@ func Run() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err = tasks.WriteMetricsToFile(ctx, storage, cfg.FileStoragePath, cfg.StoreInterval); err != nil {
-				log.Logger.Info().Err(err).Msg("error in writing metrics to file")
+			if err = tasks.WriteMetricsToFile(ctx, store, cfg.FileStoragePath, cfg.StoreInterval); err != nil {
+				log.Error().Err(err).Msg("error in writing metrics to file")
 			}
 		}()
 	}
@@ -76,30 +89,10 @@ func Run() {
 
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), _timeout)
 	defer cancel()
+
 	if err = server.Shutdown(ctxShutdown); err != nil {
-		log.Logger.Info().Err(err).Msg("error in shutting down server")
-	} else {
-		log.Logger.Info().Msg("server stopped successfully")
-	}
-}
-
-func initStorage(cfg configs.Config) (*store.Storage, error) {
-	dsn, filename := cfg.DatabaseDSN, cfg.FileStoragePath
-
-	var storageOptions []store.OptionsStorage
-	if dsn != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), _timeout)
-		defer cancel()
-		storageOptions = append(storageOptions, store.WithDB(ctx, dsn))
+		log.Fatal().Err(err).Msg("error in shutting down server")
 	}
 
-	if cfg.StoreInterval == 0 {
-		storageOptions = append(storageOptions, store.WithSyncWrite(filename))
-	}
-
-	if cfg.Restore {
-		storageOptions = append(storageOptions, store.RestoreFile(context.Background(), filename))
-	}
-
-	return store.NewStorage(storageOptions...)
+	log.Info().Msg("server stopped successfully")
 }

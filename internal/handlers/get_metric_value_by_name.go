@@ -16,17 +16,11 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	if metricType != entity.Gauge && metricType != entity.Counter {
 		err := errors.New("invalid metric type")
 		ctx.AbortWithStatus(http.StatusBadRequest)
-		h.log.Logger.Info().Err(err).Send()
+		h.log.Info().Err(err).Send()
 		return
 	}
 
 	metricName := ctx.Param("name")
-	if metricName == "" {
-		err := errors.New("metric name is empty")
-		ctx.AbortWithStatus(http.StatusNotFound)
-		h.log.Logger.Info().Err(err).Send()
-		return
-	}
 
 	metrics := entity.Metrics{
 		ID:    metricName,
@@ -36,15 +30,15 @@ func (h *MetricHandler) GetMetricValueByName(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
-	result, err := h.serviceManager.GetMetrics(c, metrics)
+	result, err := h.uc.GetMetrics(c, metrics)
 	if err != nil {
 		if errors.Is(err, entity.ErrMetricNotFound) {
 			ctx.AbortWithStatus(http.StatusNotFound)
-			h.log.Logger.Info().Err(err).Send()
+			h.log.Info().Err(err).Send()
 			return
 		}
 		ctx.AbortWithStatus(http.StatusInternalServerError)
-		h.log.Logger.Info().Err(err).Msgf("cannot get %s metric value", metrics.MType)
+		h.log.Info().Err(err).Msgf("cannot get %s metric value", metrics.MType)
 		return
 	}
 

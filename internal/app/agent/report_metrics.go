@@ -10,7 +10,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/mailru/easyjson"
 
-	"github.com/Imomali1/metrics/internal/app/agent/configs"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
@@ -29,17 +28,7 @@ func (t *ReportTask) Process() error {
 	return err
 }
 
-func worker(log logger.Logger, tasks <-chan ReportTask) {
-	for task := range tasks {
-		if err := task.Process(); err != nil {
-			log.Logger.Info().Err(err).Msg("error in reporting metrics to server")
-		} else {
-			log.Logger.Info().Msg("metrics reported successfully")
-		}
-	}
-}
-
-func reportMetricsV1(log logger.Logger, cfg configs.Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
+func reportMetricsV1(log logger.Logger, cfg Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
@@ -76,7 +65,17 @@ func reportMetricsV1(log logger.Logger, cfg configs.Config, metrics *Metrics, re
 	}
 }
 
-func reportMetricsV2(log logger.Logger, cfg configs.Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
+func worker(log logger.Logger, tasks <-chan ReportTask) {
+	for task := range tasks {
+		if err := task.Process(); err != nil {
+			log.Logger.Info().Err(err).Msg("error in reporting metrics to server")
+		} else {
+			log.Logger.Info().Msg("metrics reported successfully")
+		}
+	}
+}
+
+func reportMetricsV2(log logger.Logger, cfg Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
@@ -129,7 +128,7 @@ func reportMetricsV2(log logger.Logger, cfg configs.Config, metrics *Metrics, re
 	}
 }
 
-func reportMetricsV3(log logger.Logger, cfg configs.Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
+func reportMetricsV3(log logger.Logger, cfg Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)

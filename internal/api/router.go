@@ -6,21 +6,25 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Imomali1/metrics/internal/app/server/configs"
 	"github.com/Imomali1/metrics/internal/handlers"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/middlewares"
-	"github.com/Imomali1/metrics/internal/services"
+	"github.com/Imomali1/metrics/internal/usecase"
 )
 
 type Handlers struct {
 	MetricHandler *handlers.MetricHandler
 }
 
+type Config struct {
+	HashKey string
+}
+
 type Options struct {
-	Logger         logger.Logger
-	ServiceManager *services.Services
-	Conf           configs.Config
+	Logger           logger.Logger
+	UseCase          usecase.UseCase
+	Cfg              Config
+	HTMLTemplatePath string
 }
 
 func NewRouter(options Options) *gin.Engine {
@@ -30,13 +34,13 @@ func NewRouter(options Options) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(middlewares.ReqRespLogger(options.Logger))
 	router.Use(middlewares.CompressResponse(), middlewares.DecompressRequest())
-	router.Use(middlewares.ValidateHash(options.Logger, options.Conf.HashKey))
+	router.Use(middlewares.ValidateHash(options.Logger, options.Cfg.HashKey))
 
 	h := Handlers{
-		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager),
+		MetricHandler: handlers.NewMetricHandler(options.Logger, options.UseCase),
 	}
 
-	router.LoadHTMLGlob("static/templates/*.html")
+	router.LoadHTMLGlob(options.HTMLTemplatePath)
 
 	router.GET("/", h.MetricHandler.ListMetrics)
 

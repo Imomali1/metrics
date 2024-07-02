@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"github.com/Imomali1/metrics/internal/app/agent/configs"
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
@@ -21,18 +20,15 @@ type Metrics struct {
 	Arr       []entity.Metrics
 }
 
-func Run() {
-	var cfg configs.Config
-	configs.Parse(&cfg)
-
+func Run(cfg Config) {
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
 
 	if err := checkServer(cfg.ServerAddress); err != nil {
-		log.Logger.Err(err).Send()
+		log.Err(err).Send()
 		return
 	}
 
-	log.Logger.Info().Msg("agent is up and running...")
+	log.Info().Msg("agent is up and running...")
 
 	tasks := make(chan ReportTask)
 

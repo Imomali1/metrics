@@ -12,14 +12,16 @@ import (
 )
 
 func Test_memoryStorage_Close(t *testing.T) {
-	s := newMemoryStorage()
+	s, err := NewMemory()
+	require.NoError(t, err)
+	require.NotNil(t, s)
 	s.Close()
 }
 
 func Test_memoryStorage_GetAll(t *testing.T) {
 	ctx := context.Background()
 
-	s := newMemoryStorage()
+	s, _ := NewMemory()
 
 	metrics := entity.MetricsList{
 		{ID: "gauge1", MType: entity.Gauge, Value: utils.Ptr(123.0)},
@@ -36,7 +38,7 @@ func Test_memoryStorage_GetAll(t *testing.T) {
 func Test_memoryStorage_GetOne(t *testing.T) {
 	ctx := context.Background()
 
-	s := newMemoryStorage()
+	s, _ := NewMemory()
 
 	metrics := entity.MetricsList{
 		{ID: "gauge1", MType: entity.Gauge, Value: utils.Ptr(123.0)},
@@ -120,13 +122,13 @@ func Test_memoryStorage_GetOne(t *testing.T) {
 }
 
 func Test_memoryStorage_Ping(t *testing.T) {
-	s := newMemoryStorage()
+	s, _ := NewMemory()
 	err := s.Ping(context.Background())
 	require.Error(t, err)
 }
 
 func Test_memoryStorage_Update(t *testing.T) {
-	s := newMemoryStorage()
+	s, _ := NewMemory()
 
 	ctx := context.Background()
 	type args struct {
@@ -163,20 +165,21 @@ func Test_memoryStorage_Update(t *testing.T) {
 }
 
 func Test_newMemoryStorage(t *testing.T) {
-	want := &memoryStorage{
+	want := &Memory{
 		mu:             sync.RWMutex{},
-		counterStorage: make(map[string]int64),
-		gaugeStorage:   make(map[string]float64),
+		CounterStorage: make(map[string]int64),
+		GaugeStorage:   make(map[string]float64),
 	}
 
-	got := newMemoryStorage()
+	got, err := NewMemory()
+	require.NoError(t, err)
 	require.Equal(t, got, want)
 }
 
 func Test_memoryStorage_DeleteOne(t *testing.T) {
 	ctx := context.Background()
 
-	s := newMemoryStorage()
+	s, _ := NewMemory()
 
 	_ = s.Update(ctx, entity.MetricsList{
 		{ID: "gauge1", MType: entity.Gauge, Value: utils.Ptr(123.0)},
@@ -258,13 +261,7 @@ func Test_memoryStorage_DeleteOne(t *testing.T) {
 func Test_memoryStorage_DeleteAll(t *testing.T) {
 	ctx := context.Background()
 
-	want := &memoryStorage{
-		mu:             sync.RWMutex{},
-		counterStorage: make(map[string]int64),
-		gaugeStorage:   make(map[string]float64),
-	}
-
-	s := newMemoryStorage()
+	s, _ := NewMemory()
 
 	_ = s.Update(ctx, entity.MetricsList{
 		{ID: "gauge1", MType: entity.Gauge, Value: utils.Ptr(123.0)},
@@ -273,6 +270,7 @@ func Test_memoryStorage_DeleteAll(t *testing.T) {
 
 	err := s.DeleteAll(ctx)
 	require.NoError(t, err)
-	require.Equal(t, s.counterStorage, want.counterStorage)
-	require.Equal(t, s.gaugeStorage, want.gaugeStorage)
+
+	list, _ := s.GetAll(ctx)
+	require.Empty(t, list)
 }

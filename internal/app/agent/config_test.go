@@ -1,17 +1,14 @@
-package configs
+package agent
 
 import (
+	"github.com/Imomali1/metrics/internal/pkg/utils"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/require"
-
-	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
 func TestParse(t *testing.T) {
-	cfg := Config{}
-	Parse(&cfg)
+	cfg := LoadConfig()
 	require.NotEmpty(t, cfg)
 }
 
