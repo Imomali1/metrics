@@ -5,5 +5,7 @@ import (
 )
 
 func main() {
-	app.Run()
+	cfg := app.LoadConfig()
+
+	app.Run(cfg)
 }

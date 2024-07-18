@@ -3,11 +3,13 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/utils"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mailru/easyjson"
-	"net/http"
+
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
 func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
@@ -43,7 +45,7 @@ func (h *MetricHandler) UpdateMetricValueJSON(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
-	err = h.serviceManager.UpdateMetrics(c, []entity.Metrics{metrics})
+	err = h.uc.UpdateMetrics(c, []entity.Metrics{metrics})
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		h.log.Logger.Info().Err(err).Msgf("cannot update %s metric value", metrics.MType)

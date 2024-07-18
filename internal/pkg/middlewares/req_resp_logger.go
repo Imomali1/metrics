@@ -1,9 +1,11 @@
 package middlewares
 
 import (
-	"github.com/Imomali1/metrics/internal/pkg/logger"
-	"github.com/gin-gonic/gin"
 	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/Imomali1/metrics/internal/pkg/logger"
 )
 
 func ReqRespLogger(l logger.Logger) gin.HandlerFunc {

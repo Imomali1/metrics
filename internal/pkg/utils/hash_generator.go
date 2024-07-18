@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 )
 
+// GenerateHash generates encrypted hash.
 func GenerateHash(value []byte, key string) string {
 	h := sha256.New()
 	// передаём байты с ключом для хеширования

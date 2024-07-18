@@ -4,18 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/utils"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
+
+	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
-type dbStorage struct {
-	pool *pgxpool.Pool
+type DB struct {
+	Pool *pgxpool.Pool
 }
 
-func newDBStorage(ctx context.Context, dsn string) (*dbStorage, error) {
+func NewDB(ctx context.Context, dsn string) (Storage, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
@@ -35,16 +36,14 @@ func newDBStorage(ctx context.Context, dsn string) (*dbStorage, error) {
 		return nil, err
 	}
 
-	if err = createTable(ctx, pool); err != nil {
+	if err = CreateTable(ctx, pool); err != nil {
 		return nil, err
 	}
 
-	log.Println("DB successfully initialized")
-
-	return &dbStorage{pool: pool}, nil
+	return &DB{Pool: pool}, nil
 }
 
-func createTable(ctx context.Context, pool *pgxpool.Pool) error {
+func CreateTable(ctx context.Context, pool *pgxpool.Pool) error {
 	var (
 		counterTable = `
 		CREATE TABLE IF NOT EXISTS counter (
@@ -71,9 +70,6 @@ func createTable(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, statement := range statements {
 		_, err = tx.Exec(ctx, statement)
 		if err != nil {
-			if errRollBack := tx.Rollback(ctx); errRollBack != nil {
-				return fmt.Errorf("exec error: %w; rollback error: %w", err, errRollBack)
-			}
 			return err
 		}
 	}
@@ -81,12 +77,12 @@ func createTable(ctx context.Context, pool *pgxpool.Pool) error {
 	return tx.Commit(ctx)
 }
 
-func (s *dbStorage) Update(ctx context.Context, batch entity.MetricsList) error {
+func (s *DB) Update(ctx context.Context, batch entity.MetricsList) error {
 	if len(batch) == 0 {
 		return nil
 	}
 
-	tx, err := s.pool.Begin(ctx)
+	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -142,13 +138,13 @@ func (s *dbStorage) Update(ctx context.Context, batch entity.MetricsList) error 
 	return tx.Commit(ctx)
 }
 
-func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metrics, error) {
+func (s *DB) GetOne(ctx context.Context, id, mType string) (entity.Metrics, error) {
 	var metric = entity.Metrics{ID: id, MType: mType}
 	switch mType {
 	case entity.Counter:
 		query := `SELECT delta FROM counter WHERE name = $1 LIMIT 1`
 		var delta *int64
-		if err := s.pool.QueryRow(ctx, query, id).Scan(&delta); err != nil {
+		if err := s.Pool.QueryRow(ctx, query, id).Scan(&delta); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return entity.Metrics{}, entity.ErrMetricNotFound
 			}
@@ -158,7 +154,7 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 	case entity.Gauge:
 		query := `SELECT value FROM gauge WHERE name = $1 LIMIT 1`
 		var value *float64
-		if err := s.pool.QueryRow(ctx, query, id).Scan(&value); err != nil {
+		if err := s.Pool.QueryRow(ctx, query, id).Scan(&value); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return entity.Metrics{}, entity.ErrMetricNotFound
 			}
@@ -170,58 +166,94 @@ func (s *dbStorage) GetOne(ctx context.Context, id, mType string) (entity.Metric
 	return metric, nil
 }
 
-func (s *dbStorage) GetAll(ctx context.Context) (entity.MetricsList, error) {
+func (s *DB) GetAll(ctx context.Context) (entity.MetricsList, error) {
 	querySelectLayout := `SELECT name, %s FROM %s`
 
-	colTables := [][]string{{"delta", "counter"}, {"value", "gauge"}}
+	colTables := [][]string{{"delta", entity.Counter}, {"value", entity.Gauge}}
 
 	var list entity.MetricsList
-	for i, colTable := range colTables {
-		query := fmt.Sprintf(querySelectLayout, colTable[0], colTable[1])
-		rows, err := s.pool.Query(ctx, query)
+	for _, colTable := range colTables {
+		metrics, err := s.fetchMetrics(ctx, querySelectLayout, colTable[0], colTable[1])
 		if err != nil {
-			return nil, err
+			return entity.MetricsList{}, err
 		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var (
-				name, mType string
-				delta       *int64
-				value       *float64
-			)
-			if i == 0 {
-				err = rows.Scan(&name, &delta)
-				mType = entity.Counter
-			} else {
-				err = rows.Scan(&name, &value)
-				mType = entity.Gauge
-			}
-
-			if err != nil {
-				return nil, err
-			}
-
-			list = append(list, entity.Metrics{
-				ID:    name,
-				MType: mType,
-				Delta: delta,
-				Value: value,
-			})
-		}
-
-		if err = rows.Err(); err != nil {
-			return nil, err
-		}
+		list = append(list, metrics...)
 	}
 
 	return list, nil
 }
 
-func (s *dbStorage) Ping(ctx context.Context) error {
-	return s.pool.Ping(ctx)
+func (s *DB) fetchMetrics(
+	ctx context.Context,
+	queryLayout, colName, tableName string,
+) (entity.MetricsList, error) {
+
+	query := fmt.Sprintf(queryLayout, colName, tableName)
+	rows, err := s.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var list entity.MetricsList
+	for rows.Next() {
+		var (
+			name, mType string
+			delta       *int64
+			value       *float64
+		)
+
+		if tableName == entity.Counter {
+			err = rows.Scan(&name, &delta)
+			mType = entity.Counter
+		} else {
+			err = rows.Scan(&name, &value)
+			mType = entity.Gauge
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		list = append(list, entity.Metrics{
+			ID:    name,
+			MType: mType,
+			Delta: delta,
+			Value: value,
+		})
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return list, nil
 }
 
-func (s *dbStorage) Close() {
-	s.pool.Close()
+func (s *DB) DeleteOne(ctx context.Context, id, mType string) error {
+	if mType != entity.Counter && mType != entity.Gauge {
+		return entity.ErrInvalidMetricType
+	}
+	query := fmt.Sprintf(`DELETE FROM %s WHERE name = $1`, mType)
+	_, err := s.Pool.Exec(ctx, query, id)
+	return err
+}
+
+func (s *DB) DeleteAll(ctx context.Context) error {
+	_, err := s.Pool.Exec(ctx, "DELETE FROM counter")
+	if err != nil {
+		return err
+	}
+
+	_, err = s.Pool.Exec(ctx, "DELETE FROM gauge")
+	return err
+}
+
+func (s *DB) Ping(ctx context.Context) error {
+	return s.Pool.Ping(ctx)
+}
+
+func (s *DB) Close() {
+	s.Pool.Close()
 }

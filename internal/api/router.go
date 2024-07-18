@@ -1,23 +1,30 @@
 package api
 
 import (
-	"github.com/Imomali1/metrics/internal/app/server/configs"
+	"net/http"
+	"net/http/pprof"
+
+	"github.com/gin-gonic/gin"
+
 	"github.com/Imomali1/metrics/internal/handlers"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/middlewares"
-	"github.com/Imomali1/metrics/internal/services"
-	"github.com/gin-gonic/gin"
-	"net/http"
+	"github.com/Imomali1/metrics/internal/usecase"
 )
 
 type Handlers struct {
 	MetricHandler *handlers.MetricHandler
 }
 
+type Config struct {
+	HashKey string
+}
+
 type Options struct {
-	Logger         logger.Logger
-	ServiceManager *services.Services
-	Conf           configs.Config
+	Logger           logger.Logger
+	UseCase          usecase.UseCase
+	Cfg              Config
+	HTMLTemplatePath string
 }
 
 func NewRouter(options Options) *gin.Engine {
@@ -27,13 +34,13 @@ func NewRouter(options Options) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(middlewares.ReqRespLogger(options.Logger))
 	router.Use(middlewares.CompressResponse(), middlewares.DecompressRequest())
-	router.Use(middlewares.ValidateHash(options.Logger, options.Conf.HashKey))
+	router.Use(middlewares.ValidateHash(options.Logger, options.Cfg.HashKey))
 
 	h := Handlers{
-		MetricHandler: handlers.NewMetricHandler(options.Logger, options.ServiceManager),
+		MetricHandler: handlers.NewMetricHandler(options.Logger, options.UseCase),
 	}
 
-	router.LoadHTMLGlob("static/templates/*.html")
+	router.LoadHTMLGlob(options.HTMLTemplatePath)
 
 	router.GET("/", h.MetricHandler.ListMetrics)
 
@@ -65,6 +72,12 @@ func NewRouter(options Options) *gin.Engine {
 		// v2 get value handler using JSON
 		getValueRoutes.POST("/", h.MetricHandler.GetMetricValueByNameJSON)
 	}
+
+	router.GET("/debug/pprof/", gin.WrapF(pprof.Index))
+	router.GET("/debug/pprof/cmdline", gin.WrapF(pprof.Cmdline))
+	router.GET("/debug/pprof/profile", gin.WrapF(pprof.Profile))
+	router.GET("/debug/pprof/symbol", gin.WrapF(pprof.Symbol))
+	router.GET("/debug/pprof/trace", gin.WrapF(pprof.Trace))
 
 	return router
 }

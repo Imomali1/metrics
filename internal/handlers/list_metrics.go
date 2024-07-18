@@ -2,18 +2,19 @@ package handlers
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func (h *MetricHandler) ListMetrics(ctx *gin.Context) {
 	c, cancel := context.WithTimeout(ctx, _timeout)
 	defer cancel()
 
-	allMetrics, err := h.serviceManager.ListMetrics(c)
+	allMetrics, err := h.uc.ListMetrics(c)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusInternalServerError)
-		h.log.Logger.Info().Err(err).Msg("cannot list metrics")
+		h.log.Info().Err(err).Msg("cannot list metrics")
 		return
 	}
 

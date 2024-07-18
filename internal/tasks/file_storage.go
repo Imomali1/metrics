@@ -3,10 +3,14 @@ package tasks
 import (
 	"bufio"
 	"context"
-	store "github.com/Imomali1/metrics/internal/pkg/storage"
-	"github.com/mailru/easyjson"
 	"os"
 	"time"
+
+	"github.com/Imomali1/metrics/internal/entity"
+
+	"github.com/mailru/easyjson"
+
+	"github.com/Imomali1/metrics/internal/pkg/storage"
 )
 
 type FileWriter struct {
@@ -26,7 +30,12 @@ func NewFileWriter(filename string) (*FileWriter, error) {
 	}, nil
 }
 
-func WriteMetricsToFile(ctx context.Context, storage store.IStorage, filename string, interval int) error {
+func WriteMetricsToFile(
+	ctx context.Context,
+	store storage.Storage,
+	filename string,
+	interval int,
+) error {
 	fw, err := NewFileWriter(filename)
 	if err != nil {
 		return err
@@ -37,7 +46,13 @@ func WriteMetricsToFile(ctx context.Context, storage store.IStorage, filename st
 	for {
 		select {
 		case <-storeTicker.C:
-			err = fw.WriteAllMetrics(storage)
+			var metrics entity.MetricsList
+			metrics, err = store.GetAll(context.Background())
+			if err != nil {
+				return err
+			}
+
+			err = fw.WriteAllMetrics(metrics)
 			if err != nil {
 				return err
 			}
@@ -47,15 +62,9 @@ func WriteMetricsToFile(ctx context.Context, storage store.IStorage, filename st
 	}
 }
 
-func (fw *FileWriter) WriteAllMetrics(storage store.IStorage) error {
-	metrics, err := storage.GetAll(context.Background())
-	if err != nil {
-		return err
-	}
-
-	var data []byte
+func (fw *FileWriter) WriteAllMetrics(metrics entity.MetricsList) error {
 	for _, metric := range metrics {
-		data, err = easyjson.Marshal(metric)
+		data, err := easyjson.Marshal(metric)
 		if err != nil {
 			return err
 		}

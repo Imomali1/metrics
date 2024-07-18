@@ -1,18 +1,24 @@
-package storage
+package file
 
 import (
 	"bufio"
-	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/mailru/easyjson"
 	"os"
+
+	"github.com/mailru/easyjson"
+
+	"github.com/Imomali1/metrics/internal/entity"
 )
+
+type SyncFileWriter interface {
+	Write(batch entity.MetricsList) error
+}
 
 type fileWriter struct {
 	file   *os.File
 	writer *bufio.Writer
 }
 
-func newFileWriter(filename string) (*fileWriter, error) {
+func NewSyncMetricsWriter(filename string) (SyncFileWriter, error) {
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return nil, err

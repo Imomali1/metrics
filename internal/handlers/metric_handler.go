@@ -1,21 +1,22 @@
 package handlers
 
 import (
-	"github.com/Imomali1/metrics/internal/pkg/logger"
-	"github.com/Imomali1/metrics/internal/services"
 	"time"
+
+	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/Imomali1/metrics/internal/usecase"
 )
 
 const _timeout = 1 * time.Second
 
 type MetricHandler struct {
-	log            logger.Logger
-	serviceManager *services.Services
+	log logger.Logger
+	uc  usecase.UseCase
 }
 
-func NewMetricHandler(log logger.Logger, sm *services.Services) *MetricHandler {
+func NewMetricHandler(log logger.Logger, uc usecase.UseCase) *MetricHandler {
 	return &MetricHandler{
-		log:            log,
-		serviceManager: sm,
+		log: log,
+		uc:  uc,
 	}
 }

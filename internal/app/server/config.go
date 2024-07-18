@@ -1,9 +1,11 @@
-package configs
+package server
 
 import (
 	"flag"
 	"os"
 	"strconv"
+
+	"github.com/Imomali1/metrics/internal/api"
 )
 
 type Config struct {
@@ -12,7 +14,7 @@ type Config struct {
 	FileStoragePath string
 	Restore         bool
 	DatabaseDSN     string
-	HashKey         string
+	API             api.Config
 
 	ServiceName string
 	LogLevel    string
@@ -21,7 +23,7 @@ type Config struct {
 const (
 	defaultServerAddress   = "localhost:8080"
 	defaultStoreInterval   = 300
-	defaultFileStoragePath = "/tmp/metrics-db.json"
+	defaultFileStoragePath = "/tmp/metrics-database.json"
 	defaultRestore         = true
 	defaultDSN             = ""
 
@@ -29,7 +31,7 @@ const (
 	defaultLogLevel    = "info"
 )
 
-func Parse(cfg *Config) {
+func LoadConfig() (cfg Config) {
 	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
 	storeInterval := flag.Int("i", defaultStoreInterval, "интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
 	fileStoragePath := flag.String("f", defaultFileStoragePath, "полное имя файла, куда сохраняются текущие значения")
@@ -44,17 +46,20 @@ func Parse(cfg *Config) {
 	cfg.FileStoragePath = getEnvString("FILE_STORAGE_PATH", fileStoragePath)
 	cfg.Restore = getEnvBool("RESTORE", restore)
 	cfg.DatabaseDSN = getEnvString("DATABASE_DSN", databaseDSN)
-	cfg.HashKey = getEnvString("KEY", hashKey)
+	cfg.API.HashKey = getEnvString("KEY", hashKey)
 
 	cfg.ServiceName = defaultServiceName
 	cfg.LogLevel = defaultLogLevel
+
+	return cfg
 }
 
 func getEnvString(key string, argumentValue *string) string {
-	if os.Getenv(key) != "" {
-		return os.Getenv(key)
+	envValue, exists := os.LookupEnv(key)
+	if !exists {
+		return *argumentValue
 	}
-	return *argumentValue
+	return envValue
 }
 
 func getEnvInt(key string, argumentValue *int) int {

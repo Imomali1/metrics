@@ -7,6 +7,7 @@ var (
 	delays      = []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
 )
 
+// DoWithRetries does some function with retries.
 func DoWithRetries(fn func() error) error {
 	var err error
 	for i := 0; i < maxAttempts; i++ {
