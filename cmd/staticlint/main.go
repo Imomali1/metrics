@@ -62,16 +62,21 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				// Inspect the function body for os.Exit calls
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					callExpr, isCallExpr := n.(*ast.CallExpr)
-					if isCallExpr {
-						selectorExpr, isSelector := callExpr.Fun.(*ast.SelectorExpr)
-						if isSelector {
-							ident, isIdent := selectorExpr.X.(*ast.Ident)
-							if isIdent && ident.Name == "os" && selectorExpr.Sel.Name == "Exit" {
-								// Report the use of os.Exit in the main function
-								pass.Reportf(callExpr.Pos(), "Direct os.Exit call detected in main function")
-							}
-						}
+					if !isCallExpr {
+						return true
 					}
+
+					selectorExpr, isSelector := callExpr.Fun.(*ast.SelectorExpr)
+					if !isSelector {
+						return true
+					}
+
+					ident, isIdent := selectorExpr.X.(*ast.Ident)
+					if isIdent && ident.Name == "os" && selectorExpr.Sel.Name == "Exit" {
+						// Report the use of os.Exit in the main function
+						pass.Reportf(callExpr.Pos(), "Direct os.Exit call detected in main function")
+					}
+
 					return true
 				})
 			}
