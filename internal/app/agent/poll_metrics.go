@@ -10,15 +10,14 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 
 	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/logger"
 )
 
-func pollRuntimeMetrics(log logger.Logger, metrics *Metrics, interval int, wg *sync.WaitGroup) {
+func (a agent) pollRuntimeMetrics(metrics *Metrics, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var memStat runtime.MemStats
 	for {
-		time.Sleep(time.Duration(interval) * time.Second)
-		log.Logger.Info().Msg("started collecting runtime metrics")
+		time.Sleep(time.Duration(a.cfg.PollInterval) * time.Second)
+		a.log.Info().Msg("started collecting runtime metrics")
 		runtime.ReadMemStats(&memStat)
 		metrics.mu.Lock()
 		metrics.PollCount++
@@ -55,18 +54,18 @@ func pollRuntimeMetrics(log logger.Logger, metrics *Metrics, interval int, wg *s
 			{MType: entity.Gauge, ID: "TotalAlloc", Value: floatPtr(float64(memStat.TotalAlloc))},
 		}
 		metrics.mu.Unlock()
-		log.Logger.Info().Msg("finished collecting runtime metrics")
+		a.log.Info().Msg("finished collecting runtime metrics")
 	}
 }
 
-func pollGopsutilMetrics(log logger.Logger, metrics *Metrics, interval int, wg *sync.WaitGroup) {
+func (a agent) pollGopsutilMetrics(metrics *Metrics, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
-		time.Sleep(time.Duration(interval) * time.Second)
-		log.Logger.Info().Msg("started collecting gopsutil metrics")
+		time.Sleep(time.Duration(a.cfg.PollInterval) * time.Second)
+		a.log.Info().Msg("started collecting gopsutil metrics")
 		vm, err := mem.VirtualMemory()
 		if err != nil {
-			log.Logger.Info().Err(err).Msg("cannot get memory metrics")
+			a.log.Info().Err(err).Msg("cannot get memory metrics")
 			return
 		}
 
@@ -79,7 +78,7 @@ func pollGopsutilMetrics(log logger.Logger, metrics *Metrics, interval int, wg *
 
 		cpuUtil, err := cpu.Percent(0, false)
 		if err != nil || len(cpuUtil) == 0 {
-			log.Logger.Info().Err(err).Msg("cannot get cpu metrics")
+			a.log.Info().Err(err).Msg("cannot get cpu metrics")
 			return
 		}
 
@@ -87,7 +86,7 @@ func pollGopsutilMetrics(log logger.Logger, metrics *Metrics, interval int, wg *
 		metrics.Arr = append(metrics.Arr, entity.Metrics{ID: "CPUutilization1", MType: entity.Gauge, Value: &cpuUtil[0]})
 		metrics.mu.Unlock()
 
-		log.Logger.Info().Msg("finished collecting gopsutil metrics")
+		a.log.Info().Msg("finished collecting gopsutil metrics")
 	}
 }
 

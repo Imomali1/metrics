@@ -12,8 +12,10 @@ type Config struct {
 	ReportInterval int
 	HashKey        string
 	RateLimit      int
-	LogLevel       string
-	ServiceName    string
+	PublicKeyPath  string
+
+	LogLevel    string
+	ServiceName string
 }
 
 const (
@@ -30,6 +32,7 @@ func LoadConfig() (cfg Config) {
 	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
 	hashKey := flag.String("k", "", "Ключ для подписи данных")
 	rateLimit := flag.Int("l", 1, "количество одновременно исходящих запросов на сервер")
+	publicKeyPath := flag.String("crypto-key", "", "путь до файла с публичным ключом")
 	flag.Parse()
 
 	cfg.ServerAddress = getEnvString("ADDRESS", serverAddress)
@@ -37,6 +40,7 @@ func LoadConfig() (cfg Config) {
 	cfg.ReportInterval = getEnvInt("REPORT_INTERVAL", reportInterval)
 	cfg.HashKey = getEnvString("KEY", hashKey)
 	cfg.RateLimit = getEnvInt("RATE_LIMIT", rateLimit)
+	cfg.PublicKeyPath = getEnvString("CRYPTO_KEY", publicKeyPath)
 
 	cfg.LogLevel = defaultLogLevel
 	cfg.ServiceName = defaultServiceName

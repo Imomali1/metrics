@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"crypto/rsa"
+
 	"github.com/Imomali1/metrics/internal/handlers"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/middlewares"
@@ -25,6 +27,7 @@ type Options struct {
 	UseCase          usecase.UseCase
 	Cfg              Config
 	HTMLTemplatePath string
+	PrivateKey       *rsa.PrivateKey
 }
 
 func NewRouter(options Options) *gin.Engine {
@@ -35,6 +38,7 @@ func NewRouter(options Options) *gin.Engine {
 	router.Use(middlewares.ReqRespLogger(options.Logger))
 	router.Use(middlewares.CompressResponse(), middlewares.DecompressRequest())
 	router.Use(middlewares.ValidateHash(options.Logger, options.Cfg.HashKey))
+	router.Use(middlewares.RSADecrypt(options.Logger, options.PrivateKey))
 
 	h := Handlers{
 		MetricHandler: handlers.NewMetricHandler(options.Logger, options.UseCase),

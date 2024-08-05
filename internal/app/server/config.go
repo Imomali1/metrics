@@ -15,6 +15,7 @@ type Config struct {
 	Restore         bool
 	DatabaseDSN     string
 	API             api.Config
+	PrivateKeyPath  string
 
 	ServiceName string
 	LogLevel    string
@@ -38,7 +39,7 @@ func LoadConfig() (cfg Config) {
 	restore := flag.Bool("r", defaultRestore, "булево значение, определяющее, загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
 	databaseDSN := flag.String("d", defaultDSN, "адрес подключения к БД")
 	hashKey := flag.String("k", "", "Ключ для подписи данных")
-
+	privateKeyPath := flag.String("crypto-key", "", "путь до файла с приватным ключом")
 	flag.Parse()
 
 	cfg.ServerAddress = getEnvString("ADDRESS", serverAddress)
@@ -47,6 +48,7 @@ func LoadConfig() (cfg Config) {
 	cfg.Restore = getEnvBool("RESTORE", restore)
 	cfg.DatabaseDSN = getEnvString("DATABASE_DSN", databaseDSN)
 	cfg.API.HashKey = getEnvString("KEY", hashKey)
+	cfg.PrivateKeyPath = getEnvString("CRYPTO_KEY", privateKeyPath)
 
 	cfg.ServiceName = defaultServiceName
 	cfg.LogLevel = defaultLogLevel
