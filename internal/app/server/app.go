@@ -13,7 +13,10 @@ import (
 
 	_ "net/http/pprof"
 
+	"crypto/rsa"
+
 	"github.com/Imomali1/metrics/internal/api"
+	"github.com/Imomali1/metrics/internal/pkg/cipher"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/storage"
 	"github.com/Imomali1/metrics/internal/repository"
@@ -47,6 +50,14 @@ func Run(cfg Config, log logger.Logger) {
 		}
 	}
 
+	var privateKey *rsa.PrivateKey
+	if cfg.PrivateKeyPath != "" {
+		privateKey, err = cipher.UploadRSAPrivateKey(cfg.PrivateKeyPath)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to upload rsa private key")
+		}
+	}
+
 	repo := repository.New(store, syncFileWriter)
 	uc := usecase.New(repo)
 	handler := api.NewRouter(api.Options{
@@ -54,6 +65,7 @@ func Run(cfg Config, log logger.Logger) {
 		UseCase:          uc,
 		Cfg:              cfg.API,
 		HTMLTemplatePath: _htmlTemplatePath,
+		PrivateKey:       privateKey,
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())

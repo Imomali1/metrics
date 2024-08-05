@@ -11,7 +11,7 @@ import (
 	"github.com/mailru/easyjson"
 
 	"github.com/Imomali1/metrics/internal/entity"
-	"github.com/Imomali1/metrics/internal/pkg/logger"
+	"github.com/Imomali1/metrics/internal/pkg/cipher"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
@@ -28,13 +28,13 @@ func (t *ReportTask) Process() error {
 	return err
 }
 
-func reportMetricsV1(log logger.Logger, cfg Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
+func (a agent) reportMetricsV1(metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
-		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
-		log.Logger.Info().Msg("started reporting metrics to server/v1...")
+		time.Sleep(time.Duration(a.cfg.ReportInterval) * time.Second)
+		a.log.Info().Msg("started reporting metrics to server/v1...")
 		if len(metrics.Arr) == 0 {
-			log.Logger.Info().Msg("no metrics to report")
+			a.log.Info().Msg("no metrics to report")
 			return
 		}
 
@@ -45,14 +45,14 @@ func reportMetricsV1(log logger.Logger, cfg Config, metrics *Metrics, requests c
 		metrics.mu.RUnlock()
 
 		for _, metric := range arr {
-			url := fmt.Sprintf("http://%s/update/%s/%s/", cfg.ServerAddress, metric.MType, metric.ID)
+			url := fmt.Sprintf("http://%s/update/%s/%s/", a.cfg.ServerAddress, metric.MType, metric.ID)
 			switch metric.MType {
 			case entity.Counter:
 				url = fmt.Sprintf("%s%d", url, *metric.Delta)
 			case entity.Gauge:
 				url = fmt.Sprintf("%s%f", url, *metric.Value)
 			default:
-				log.Logger.Info().Msgf("invalid metric type: %s", metric.MType)
+				a.log.Info().Msgf("invalid metric type: %s", metric.MType)
 				continue
 			}
 
@@ -61,27 +61,27 @@ func reportMetricsV1(log logger.Logger, cfg Config, metrics *Metrics, requests c
 				URL:     url,
 			}
 		}
-		log.Logger.Info().Msg("finished reporting metrics to server/v1...")
+		a.log.Info().Msg("finished reporting metrics to server/v1...")
 	}
 }
 
-func worker(log logger.Logger, tasks <-chan ReportTask) {
+func (a agent) worker(tasks <-chan ReportTask) {
 	for task := range tasks {
 		if err := task.Process(); err != nil {
-			log.Logger.Info().Err(err).Msg("error in reporting metrics to server")
+			a.log.Info().Err(err).Msg("error in reporting metrics to server")
 		} else {
-			log.Logger.Info().Msg("metrics reported successfully")
+			a.log.Info().Msg("metrics reported successfully")
 		}
 	}
 }
 
-func reportMetricsV2(log logger.Logger, cfg Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
+func (a agent) reportMetricsV2(metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
-		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
-		log.Logger.Info().Msg("started reporting metrics to server/v2...")
+		time.Sleep(time.Duration(a.cfg.ReportInterval) * time.Second)
+		a.log.Info().Msg("started reporting metrics to server/v2...")
 		if len(metrics.Arr) == 0 {
-			log.Logger.Info().Msg("no metrics to report")
+			a.log.Info().Msg("no metrics to report")
 			return
 		}
 
@@ -89,7 +89,7 @@ func reportMetricsV2(log logger.Logger, cfg Config, metrics *Metrics, requests c
 			SetHeader("Content-Encoding", "gzip").
 			SetHeader("Content-Type", "application/json")
 
-		url := fmt.Sprintf("http://%s/update/", cfg.ServerAddress)
+		url := fmt.Sprintf("http://%s/update/", a.cfg.ServerAddress)
 
 		metrics.mu.RLock()
 		arr := metrics.Arr
@@ -98,24 +98,33 @@ func reportMetricsV2(log logger.Logger, cfg Config, metrics *Metrics, requests c
 		for _, metric := range arr {
 			body, err := easyjson.Marshal(metric)
 			if err != nil {
-				log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
+				a.log.Info().Err(err).Msg("cannot unmarshal metric object")
 				continue
 			}
+
+			if a.publicKey != nil {
+				body, err = cipher.EncryptRSA(a.publicKey, body)
+				if err != nil {
+					a.log.Info().Err(err).Msg("cannot encrypt message")
+					continue
+				}
+			}
+
 			var buf bytes.Buffer
 			gzipWriter := gzip.NewWriter(&buf)
 			_, err = gzipWriter.Write(body)
 			if err != nil {
-				log.Logger.Info().Err(err).Msg("cannot compress body")
+				a.log.Info().Err(err).Msg("cannot compress body")
 				continue
 			}
 			err = gzipWriter.Close()
 			if err != nil {
-				log.Logger.Info().Err(err).Msg("cannot close gzip writer")
+				a.log.Info().Err(err).Msg("cannot close gzip writer")
 				continue
 			}
 
-			if cfg.HashKey != "" {
-				hash := utils.GenerateHash(buf.Bytes(), cfg.HashKey)
+			if a.cfg.HashKey != "" {
+				hash := utils.GenerateHash(buf.Bytes(), a.cfg.HashKey)
 				client.SetHeader("HashSHA256", hash)
 			}
 
@@ -124,17 +133,17 @@ func reportMetricsV2(log logger.Logger, cfg Config, metrics *Metrics, requests c
 				URL:     url,
 			}
 		}
-		log.Logger.Info().Msg("finished reporting metrics to server/v2...")
+		a.log.Info().Msg("finished reporting metrics to server/v2...")
 	}
 }
 
-func reportMetricsV3(log logger.Logger, cfg Config, metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
+func (a agent) reportMetricsV3(metrics *Metrics, requests chan<- ReportTask, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
-		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
-		log.Logger.Info().Msg("started reporting metrics to server/v3...")
+		time.Sleep(time.Duration(a.cfg.ReportInterval) * time.Second)
+		a.log.Info().Msg("started reporting metrics to server/v3...")
 		if len(metrics.Arr) == 0 {
-			log.Logger.Info().Msg("no metrics to report")
+			a.log.Info().Msg("no metrics to report")
 			return
 		}
 
@@ -142,7 +151,7 @@ func reportMetricsV3(log logger.Logger, cfg Config, metrics *Metrics, requests c
 			SetHeader("Content-Encoding", "gzip").
 			SetHeader("Content-Type", "application/json")
 
-		url := fmt.Sprintf("http://%s/updates/", cfg.ServerAddress)
+		url := fmt.Sprintf("http://%s/updates/", a.cfg.ServerAddress)
 
 		metrics.mu.RLock()
 		arr := metrics.Arr
@@ -151,26 +160,34 @@ func reportMetricsV3(log logger.Logger, cfg Config, metrics *Metrics, requests c
 		list := entity.MetricsList(arr)
 		body, err := easyjson.Marshal(&list)
 		if err != nil {
-			log.Logger.Info().Err(err).Msg("cannot unmarshal metric object")
+			a.log.Info().Err(err).Msg("cannot unmarshal metric object")
 			return
+		}
+
+		if a.publicKey != nil {
+			body, err = cipher.EncryptRSA(a.publicKey, body)
+			if err != nil {
+				a.log.Info().Err(err).Msg("cannot encrypt message")
+				continue
+			}
 		}
 
 		var buf bytes.Buffer
 		gzipWriter := gzip.NewWriter(&buf)
 		_, err = gzipWriter.Write(body)
 		if err != nil {
-			log.Logger.Info().Err(err).Msg("cannot compress body")
+			a.log.Info().Err(err).Msg("cannot compress body")
 			return
 		}
 
 		err = gzipWriter.Close()
 		if err != nil {
-			log.Logger.Info().Err(err).Msg("cannot close gzip writer")
+			a.log.Info().Err(err).Msg("cannot close gzip writer")
 			return
 		}
 
-		if cfg.HashKey != "" {
-			hash := utils.GenerateHash(buf.Bytes(), cfg.HashKey)
+		if a.cfg.HashKey != "" {
+			hash := utils.GenerateHash(buf.Bytes(), a.cfg.HashKey)
 			client.SetHeader("HashSHA256", hash)
 		}
 
@@ -179,6 +196,6 @@ func reportMetricsV3(log logger.Logger, cfg Config, metrics *Metrics, requests c
 			URL:     url,
 		}
 
-		log.Logger.Info().Msg("finished reporting metrics to server/v3...")
+		a.log.Info().Msg("finished reporting metrics to server/v3...")
 	}
 }

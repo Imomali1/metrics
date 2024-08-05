@@ -1,8 +1,9 @@
 package main
 
 import (
-	app "github.com/Imomali1/metrics/internal/app/agent"
 	"fmt"
+
+	app "github.com/Imomali1/metrics/internal/app/agent"
 )
 
 var (

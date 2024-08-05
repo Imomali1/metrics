@@ -3,9 +3,10 @@ package main
 import (
 	"os"
 
+	"fmt"
+
 	app "github.com/Imomali1/metrics/internal/app/server"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
-	"fmt"
 )
 
 var (

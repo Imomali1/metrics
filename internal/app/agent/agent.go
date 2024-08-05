@@ -9,10 +9,21 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
+	"crypto/rsa"
+
+	"github.com/rs/zerolog/log"
+
 	"github.com/Imomali1/metrics/internal/entity"
+	"github.com/Imomali1/metrics/internal/pkg/cipher"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
+
+type agent struct {
+	cfg       Config
+	log       logger.Logger
+	publicKey *rsa.PublicKey
+}
 
 type Metrics struct {
 	mu        sync.RWMutex
@@ -21,7 +32,17 @@ type Metrics struct {
 }
 
 func Run(cfg Config) {
-	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
+	app := agent{
+		cfg: cfg,
+		log: logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName),
+	}
+
+	var err error
+	app.publicKey, err = cipher.UploadRSAPublicKey(cfg.PublicKeyPath)
+	if err != nil {
+		log.Err(err).Send()
+		return
+	}
 
 	if err := checkServer(cfg.ServerAddress); err != nil {
 		log.Err(err).Send()
@@ -33,18 +54,18 @@ func Run(cfg Config) {
 	tasks := make(chan ReportTask)
 
 	for i := 0; i < cfg.RateLimit; i++ {
-		go worker(log, tasks)
+		go app.worker(tasks)
 	}
 
 	metrics := new(Metrics)
 
 	var wg sync.WaitGroup
 	wg.Add(5)
-	go pollRuntimeMetrics(log, metrics, cfg.PollInterval, &wg)
-	go pollGopsutilMetrics(log, metrics, cfg.PollInterval, &wg)
-	go reportMetricsV1(log, cfg, metrics, tasks, &wg)
-	go reportMetricsV2(log, cfg, metrics, tasks, &wg)
-	go reportMetricsV3(log, cfg, metrics, tasks, &wg)
+	go app.pollRuntimeMetrics(metrics, &wg)
+	go app.pollGopsutilMetrics(metrics, &wg)
+	go app.reportMetricsV1(metrics, tasks, &wg)
+	go app.reportMetricsV2(metrics, tasks, &wg)
+	go app.reportMetricsV3(metrics, tasks, &wg)
 	wg.Wait()
 
 	close(tasks)

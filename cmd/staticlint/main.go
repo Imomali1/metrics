@@ -2,6 +2,8 @@ package main
 
 import (
 	"go/ast"
+	"strings"
+
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -33,7 +35,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
-	"strings"
 )
 
 // osExitAnalyzer - Custom analyzer to prohibit os.Exit call in main func
