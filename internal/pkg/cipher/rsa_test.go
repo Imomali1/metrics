@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 
@@ -31,8 +32,8 @@ func TestDecryptRSA(t *testing.T) {
 	invalid, _ := genPKCS8PKIXRsaKeys(_rsaPKCS8PrivateKeyPath, _rsaPKIXPublicKeyPath)
 
 	defer func() {
-		valid.clean()
-		invalid.clean()
+		assert.NoError(t, valid.clean())
+		assert.NoError(t, invalid.clean())
 	}()
 
 	tests := []struct {
@@ -78,8 +79,8 @@ func TestEncryptRSA(t *testing.T) {
 	invalid, _ := genPKCS8PKIXRsaKeys(_rsaPKCS8PrivateKeyPath, _rsaPKIXPublicKeyPath)
 
 	defer func() {
-		valid.clean()
-		invalid.clean()
+		assert.NoError(t, valid.clean())
+		assert.NoError(t, invalid.clean())
 	}()
 
 	tests := []struct {
@@ -134,10 +135,10 @@ func TestUploadRSAPrivateKey(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-		keys1.clean()
-		keys2.clean()
+		assert.NoError(t, tmp.Close())
+		assert.NoError(t, os.Remove(tmp.Name()))
+		assert.NoError(t, keys1.clean())
+		assert.NoError(t, keys2.clean())
 	}()
 
 	tests := []struct {
@@ -197,10 +198,10 @@ func TestUploadRSAPublicKey(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-		keys1.clean()
-		keys2.clean()
+		assert.NoError(t, tmp.Close())
+		assert.NoError(t, os.Remove(tmp.Name()))
+		assert.NoError(t, keys1.clean())
+		assert.NoError(t, keys2.clean())
 	}()
 
 	tests := []struct {
@@ -297,7 +298,9 @@ func genPKCS1RsaKeys(privateKeyPath, publicKeyPath string) (*rsaKey, error) {
 		return nil, err
 	}
 
-	defer privKeyFile.Close()
+	defer func() {
+		_ = privKeyFile.Close()
+	}()
 
 	_, err = privKeyFile.Write(privateKeyPEM)
 	if err != nil {
@@ -309,7 +312,9 @@ func genPKCS1RsaKeys(privateKeyPath, publicKeyPath string) (*rsaKey, error) {
 		return nil, err
 	}
 
-	defer pubKeyFile.Close()
+	defer func() {
+		_ = pubKeyFile.Close()
+	}()
 
 	_, err = pubKeyFile.Write(publicKeyPEM)
 	if err != nil {
@@ -359,7 +364,9 @@ func genPKCS8PKIXRsaKeys(privateKeyPath, publicKeyPath string) (*rsaKey, error) 
 		return nil, err
 	}
 
-	defer privKeyFile.Close()
+	defer func() {
+		_ = privKeyFile.Close()
+	}()
 
 	_, err = privKeyFile.Write(privateKeyPEM)
 	if err != nil {
@@ -371,7 +378,9 @@ func genPKCS8PKIXRsaKeys(privateKeyPath, publicKeyPath string) (*rsaKey, error) 
 		return nil, err
 	}
 
-	defer pubKeyFile.Close()
+	defer func() {
+		_ = pubKeyFile.Close()
+	}()
 
 	_, err = pubKeyFile.Write(publicKeyPEM)
 	if err != nil {
