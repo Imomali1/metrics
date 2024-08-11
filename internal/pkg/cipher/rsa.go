@@ -5,20 +5,20 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"os"
 )
 
 func UploadRSAPublicKey(filename string) (publicKey *rsa.PublicKey, err error) {
-	if filename == "" {
-		return publicKey, err
-	}
-
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		return publicKey, err
 	}
 
 	block, _ := pem.Decode(content)
+	if block == nil {
+		return publicKey, errors.New("failed to parse PEM block")
+	}
 
 	publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
 	if err != nil {
@@ -35,6 +35,9 @@ func UploadRSAPrivateKey(filename string) (privateKey *rsa.PrivateKey, err error
 	}
 
 	block, _ := pem.Decode(content)
+	if block == nil {
+		return privateKey, errors.New("failed to parse PEM block")
+	}
 
 	privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
