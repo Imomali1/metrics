@@ -24,7 +24,7 @@ type Config struct {
 
 const (
 	defaultServerAddress   = "localhost:8080"
-	defaultStoreInterval   = 300 * time.Second
+	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-database.json"
 	defaultRestore         = true
 	defaultDSN             = ""
@@ -35,7 +35,7 @@ const (
 
 func LoadConfig() (cfg Config) {
 	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
-	storeInterval := flag.Duration("i", defaultStoreInterval, "интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
+	storeInterval := flag.Int("i", defaultStoreInterval, "интервал времени в секундах, по истечении которого текущие показания сервера сохраняются на диск")
 	fileStoragePath := flag.String("f", defaultFileStoragePath, "полное имя файла, куда сохраняются текущие значения")
 	restore := flag.Bool("r", defaultRestore, "булево значение, определяющее, загружать или нет ранее сохранённые значения из указанного файла при старте сервера")
 	databaseDSN := flag.String("d", defaultDSN, "адрес подключения к БД")
@@ -71,9 +71,9 @@ func LoadConfig() (cfg Config) {
 
 	cfg.StoreInterval = getEnvDuration(
 		"STORE_INTERVAL",
-		*storeInterval,
+		time.Duration(*storeInterval)*time.Second,
 		fileConf.StoreInterval,
-		defaultStoreInterval,
+		time.Duration(defaultStoreInterval)*time.Second,
 	)
 
 	cfg.FileStoragePath = getEnvString(

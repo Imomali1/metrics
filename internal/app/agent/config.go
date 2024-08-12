@@ -21,16 +21,16 @@ type Config struct {
 
 const (
 	defaultServerAddress  = "localhost:8080"
-	defaultPollInterval   = 2 * time.Second
-	defaultReportInterval = 10 * time.Second
+	defaultPollInterval   = 2
+	defaultReportInterval = 10
 	defaultLogLevel       = "info"
 	defaultServiceName    = "metrics_agent"
 )
 
 func LoadConfig() (cfg Config) {
 	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
-	pollInterval := flag.Duration("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
-	reportInterval := flag.Duration("r", defaultReportInterval, "частота отправки метрик на сервер")
+	pollInterval := flag.Int("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
+	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
 	hashKey := flag.String("k", "", "Ключ для подписи данных")
 	rateLimit := flag.Int("l", 1, "количество одновременно исходящих запросов на сервер")
 	publicKeyPath := flag.String("crypto-key", "", "путь до файла с публичным ключом")
@@ -64,16 +64,16 @@ func LoadConfig() (cfg Config) {
 
 	cfg.PollInterval = getEnvDuration(
 		"POLL_INTERVAL",
-		*pollInterval,
+		time.Duration(*pollInterval)*time.Second,
 		fileConf.PollInterval,
-		defaultPollInterval,
+		time.Duration(defaultPollInterval)*time.Second,
 	)
 
 	cfg.ReportInterval = getEnvDuration(
 		"REPORT_INTERVAL",
-		*reportInterval,
+		time.Duration(*reportInterval)*time.Second,
 		fileConf.ReportInterval,
-		defaultReportInterval,
+		time.Duration(defaultReportInterval)*time.Second,
 	)
 
 	cfg.HashKey = getEnvString(
