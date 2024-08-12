@@ -3,11 +3,12 @@ package agent
 import (
 	"errors"
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"net"
 	"os"
+	"os/signal"
 	"sync"
-
-	"github.com/go-resty/resty/v2"
+	"syscall"
 
 	"crypto/rsa"
 
@@ -44,7 +45,7 @@ func Run(cfg Config) {
 		return
 	}
 
-	if err := checkServer(cfg.ServerAddress); err != nil {
+	if err = checkServer(cfg.ServerAddress); err != nil {
 		log.Err(err).Send()
 		return
 	}
@@ -59,16 +60,21 @@ func Run(cfg Config) {
 
 	metrics := new(Metrics)
 
-	var wg sync.WaitGroup
-	wg.Add(5)
-	go app.pollRuntimeMetrics(metrics, &wg)
-	go app.pollGopsutilMetrics(metrics, &wg)
-	go app.reportMetricsV1(metrics, tasks, &wg)
-	go app.reportMetricsV2(metrics, tasks, &wg)
-	go app.reportMetricsV3(metrics, tasks, &wg)
-	wg.Wait()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
+	wg := &sync.WaitGroup{}
+
+	app.pollRuntimeMetrics(metrics, wg, quit)
+	app.pollGopsutilMetrics(metrics, wg, quit)
+	app.reportMetricsV1(metrics, tasks, wg, quit)
+	app.reportMetricsV2(metrics, tasks, wg, quit)
+	app.reportMetricsV3(metrics, tasks, wg, quit)
+
+	wg.Wait()
 	close(tasks)
+
+	log.Info().Msg("agent stopped successfully")
 }
 
 func checkServer(address string) error {

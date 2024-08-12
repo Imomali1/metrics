@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 type FileConfig struct {
-	ServerAddress  *string `json:"address"`
-	PollInterval   *int    `json:"poll_interval"`
-	ReportInterval *int    `json:"report_interval"`
-	PublicKeyPath  *string `json:"crypto_key"`
+	ServerAddress  *string        `json:"address"`
+	PollInterval   *time.Duration `json:"poll_interval"`
+	ReportInterval *time.Duration `json:"report_interval"`
+	PublicKeyPath  *string        `json:"crypto_key"`
 }
 
 func LoadFileConfig(configPath string) (FileConfig, error) {

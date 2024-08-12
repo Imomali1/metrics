@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Imomali1/metrics/internal/pkg/file"
@@ -86,7 +87,11 @@ func Run(cfg Config, log logger.Logger) {
 	if cfg.FileStoragePath != "" && cfg.StoreInterval != 0 {
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
+			defer func() {
+				wg.Done()
+				log.Info().Msg("shutting task write metrics down gracefully.")
+			}()
+
 			if err = tasks.WriteMetricsToFile(ctx, store, cfg.FileStoragePath, cfg.StoreInterval); err != nil {
 				log.Error().Err(err).Msg("error in writing metrics to file")
 			}
@@ -94,9 +99,12 @@ func Run(cfg Config, log logger.Logger) {
 	}
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	sig := <-quit
 
-	<-quit
+	log.Info().Msgf("Got signal: %s", sig.String())
+	log.Info().Msg("Please wait until all processes have terminated...")
+
 	cancel()
 	wg.Wait()
 

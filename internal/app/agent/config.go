@@ -4,12 +4,13 @@ import (
 	"flag"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config struct {
 	ServerAddress  string
-	PollInterval   int
-	ReportInterval int
+	PollInterval   time.Duration
+	ReportInterval time.Duration
 	HashKey        string
 	RateLimit      int
 	PublicKeyPath  string
@@ -20,16 +21,16 @@ type Config struct {
 
 const (
 	defaultServerAddress  = "localhost:8080"
-	defaultPollInterval   = 2
-	defaultReportInterval = 10
+	defaultPollInterval   = 2 * time.Second
+	defaultReportInterval = 10 * time.Second
 	defaultLogLevel       = "info"
 	defaultServiceName    = "metrics_agent"
 )
 
 func LoadConfig() (cfg Config) {
 	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
-	pollInterval := flag.Int("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
-	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
+	pollInterval := flag.Duration("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
+	reportInterval := flag.Duration("r", defaultReportInterval, "частота отправки метрик на сервер")
 	hashKey := flag.String("k", "", "Ключ для подписи данных")
 	rateLimit := flag.Int("l", 1, "количество одновременно исходящих запросов на сервер")
 	publicKeyPath := flag.String("crypto-key", "", "путь до файла с публичным ключом")
@@ -61,14 +62,14 @@ func LoadConfig() (cfg Config) {
 		defaultServerAddress,
 	)
 
-	cfg.PollInterval = getEnvInt(
+	cfg.PollInterval = getEnvDuration(
 		"POLL_INTERVAL",
 		*pollInterval,
 		fileConf.PollInterval,
 		defaultPollInterval,
 	)
 
-	cfg.ReportInterval = getEnvInt(
+	cfg.ReportInterval = getEnvDuration(
 		"REPORT_INTERVAL",
 		*reportInterval,
 		fileConf.ReportInterval,
@@ -144,6 +145,28 @@ func getEnvInt(
 
 	if fileConfValue != nil {
 		return *fileConfValue
+	}
+
+	return defaultValue
+}
+
+func getEnvDuration(
+	key string,
+	flagValue time.Duration,
+	fileValue *time.Duration,
+	defaultValue time.Duration,
+) time.Duration {
+	envValue, err := time.ParseDuration(os.Getenv(key))
+	if err == nil {
+		return envValue
+	}
+
+	if flagValue != defaultValue {
+		return flagValue
+	}
+
+	if fileValue != nil {
+		return *fileValue
 	}
 
 	return defaultValue
