@@ -33,15 +33,68 @@ func LoadConfig() (cfg Config) {
 	hashKey := flag.String("k", "", "Ключ для подписи данных")
 	rateLimit := flag.Int("l", 1, "количество одновременно исходящих запросов на сервер")
 	publicKeyPath := flag.String("crypto-key", "", "путь до файла с публичным ключом")
+	shortConfigFilePath := flag.String("c", "", "путь до файла конфигурации short")
+	longConfigFilePath := flag.String("config", "", "путь до файла конфигурации long")
 
 	flag.Parse()
 
-	cfg.ServerAddress = getEnvString("ADDRESS", serverAddress)
-	cfg.PollInterval = getEnvInt("POLL_INTERVAL", pollInterval)
-	cfg.ReportInterval = getEnvInt("REPORT_INTERVAL", reportInterval)
-	cfg.HashKey = getEnvString("KEY", hashKey)
-	cfg.RateLimit = getEnvInt("RATE_LIMIT", rateLimit)
-	cfg.PublicKeyPath = getEnvString("CRYPTO_KEY", publicKeyPath)
+	configFilePath := *longConfigFilePath
+
+	if *shortConfigFilePath != "" {
+		configFilePath = *shortConfigFilePath
+	}
+
+	path, found := os.LookupEnv("CONFIG")
+	if found {
+		configFilePath = path
+	}
+
+	fileConf, err := LoadFileConfig(configFilePath)
+	if err != nil {
+		panic(err)
+	}
+
+	cfg.ServerAddress = getEnvString(
+		"ADDRESS",
+		*serverAddress,
+		fileConf.ServerAddress,
+		defaultServerAddress,
+	)
+
+	cfg.PollInterval = getEnvInt(
+		"POLL_INTERVAL",
+		*pollInterval,
+		fileConf.PollInterval,
+		defaultPollInterval,
+	)
+
+	cfg.ReportInterval = getEnvInt(
+		"REPORT_INTERVAL",
+		*reportInterval,
+		fileConf.ReportInterval,
+		defaultReportInterval,
+	)
+
+	cfg.HashKey = getEnvString(
+		"KEY",
+		*hashKey,
+		nil,
+		"",
+	)
+
+	cfg.RateLimit = getEnvInt(
+		"RATE_LIMIT",
+		*rateLimit,
+		nil,
+		1,
+	)
+
+	cfg.PublicKeyPath = getEnvString(
+		"CRYPTO_KEY",
+		*publicKeyPath,
+		fileConf.PublicKeyPath,
+		"",
+	)
 
 	cfg.LogLevel = defaultLogLevel
 	cfg.ServiceName = defaultServiceName
@@ -49,18 +102,49 @@ func LoadConfig() (cfg Config) {
 	return cfg
 }
 
-func getEnvString(key string, argumentValue *string) string {
-	envValue, exists := os.LookupEnv(key)
-	if !exists {
-		return *argumentValue
-	}
-	return envValue
-}
-
-func getEnvInt(key string, argumentValue *int) int {
-	envValue, err := strconv.Atoi(os.Getenv(key))
-	if err == nil {
+func getEnvString(
+	envKey string,
+	flagValue string,
+	fileConfValue *string,
+	defaultValue string,
+) string {
+	envValue, exists := os.LookupEnv(envKey)
+	if exists {
 		return envValue
 	}
-	return *argumentValue
+
+	if flagValue != defaultValue {
+		return flagValue
+	}
+
+	if fileConfValue != nil {
+		return *fileConfValue
+	}
+
+	return defaultValue
+}
+
+func getEnvInt(
+	envKey string,
+	flagValue int,
+	fileConfValue *int,
+	defaultValue int,
+) int {
+	envValueStr, exists := os.LookupEnv(envKey)
+	if exists {
+		envValue, err := strconv.Atoi(envValueStr)
+		if err == nil {
+			return envValue
+		}
+	}
+
+	if flagValue != defaultValue {
+		return flagValue
+	}
+
+	if fileConfValue != nil {
+		return *fileConfValue
+	}
+
+	return defaultValue
 }

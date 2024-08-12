@@ -34,14 +34,14 @@ func WriteMetricsToFile(
 	ctx context.Context,
 	store storage.Storage,
 	filename string,
-	interval int,
+	interval time.Duration,
 ) error {
 	fw, err := NewFileWriter(filename)
 	if err != nil {
 		return err
 	}
 
-	storeTicker := time.NewTicker(time.Duration(interval) * time.Second)
+	storeTicker := time.NewTicker(interval)
 
 	for {
 		select {

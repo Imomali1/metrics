@@ -17,7 +17,9 @@ func TestParse(t *testing.T) {
 func Test_getEnvInt(t *testing.T) {
 	type args struct {
 		key           string
-		argumentValue *int
+		flagValue     int
+		fileConfValue *int
+		defaultValue  int
 	}
 
 	tests := []struct {
@@ -31,7 +33,9 @@ func Test_getEnvInt(t *testing.T) {
 			initFunc: func() { os.Setenv("NUMBER", "250") },
 			args: args{
 				key:           "NUMBER",
-				argumentValue: utils.Ptr(125),
+				flagValue:     125,
+				fileConfValue: utils.Ptr(150),
+				defaultValue:  0,
 			},
 			want: 250,
 		},
@@ -40,25 +44,42 @@ func Test_getEnvInt(t *testing.T) {
 			initFunc: func() { os.Setenv("NUMBER", "invalid") },
 			args: args{
 				key:           "NUMBER",
-				argumentValue: utils.Ptr(125),
+				flagValue:     125,
+				fileConfValue: utils.Ptr(150),
+				defaultValue:  0,
 			},
 			want: 125,
 		},
 		{
-			name:     "with empty os env",
-			initFunc: func() { os.Setenv("NUMBER", "") },
-			args: args{
-				key:           "NUMBER",
-				argumentValue: utils.Ptr(125),
-			},
-			want: 125,
-		},
-		{
-			name:     "without os env",
+			name:     "from flag",
 			initFunc: func() { os.Unsetenv("NUMBER") },
 			args: args{
 				key:           "NUMBER",
-				argumentValue: utils.Ptr(125),
+				flagValue:     125,
+				fileConfValue: utils.Ptr(150),
+				defaultValue:  0,
+			},
+			want: 125,
+		},
+		{
+			name:     "from file",
+			initFunc: func() { os.Unsetenv("NUMBER") },
+			args: args{
+				key:           "NUMBER",
+				flagValue:     0,
+				fileConfValue: utils.Ptr(150),
+				defaultValue:  0,
+			},
+			want: 150,
+		},
+		{
+			name:     "default",
+			initFunc: func() { os.Unsetenv("NUMBER") },
+			args: args{
+				key:           "NUMBER",
+				flagValue:     125,
+				fileConfValue: nil,
+				defaultValue:  125,
 			},
 			want: 125,
 		},
@@ -66,7 +87,7 @@ func Test_getEnvInt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.initFunc()
-			if got := getEnvInt(tt.args.key, tt.args.argumentValue); got != tt.want {
+			if got := getEnvInt(tt.args.key, tt.args.flagValue, tt.args.fileConfValue, tt.args.defaultValue); got != tt.want {
 				t.Errorf("getEnvInt() = %v, want %v", got, tt.want)
 			}
 		})
@@ -76,7 +97,9 @@ func Test_getEnvInt(t *testing.T) {
 func Test_getEnvString(t *testing.T) {
 	type args struct {
 		key           string
-		argumentValue *string
+		flagValue     string
+		fileConfValue *string
+		defaultValue  string
 	}
 
 	tests := []struct {
@@ -86,37 +109,56 @@ func Test_getEnvString(t *testing.T) {
 		want     string
 	}{
 		{
-			name:     "with normal os env",
+			name:     "normal os env",
 			initFunc: func() { os.Setenv("TEXT", "normal") },
 			args: args{
-				key:           "TEXT",
-				argumentValue: utils.Ptr("argument"),
+				key:       "TEXT",
+				flagValue: "argument",
 			},
 			want: "normal",
 		},
 		{
-			name:     "with empty os env",
+			name:     "empty os env",
 			initFunc: func() { os.Setenv("TEXT", "") },
 			args: args{
-				key:           "TEXT",
-				argumentValue: utils.Ptr("argument"),
+				key:       "TEXT",
+				flagValue: "argument",
 			},
 			want: "",
 		},
 		{
-			name:     "without os env",
+			name:     "from flag",
+			initFunc: func() { os.Unsetenv("TEXT") },
+			args: args{
+				key:       "TEXT",
+				flagValue: "flag",
+			},
+			want: "flag",
+		},
+		{
+			name:     "from file",
 			initFunc: func() { os.Unsetenv("TEXT") },
 			args: args{
 				key:           "TEXT",
-				argumentValue: utils.Ptr("argument"),
+				fileConfValue: utils.Ptr("file"),
 			},
-			want: "argument",
+			want: "file",
+		},
+		{
+			name:     "default",
+			initFunc: func() { os.Unsetenv("TEXT") },
+			args: args{
+				key:          "TEXT",
+				flagValue:    "default",
+				defaultValue: "default",
+			},
+			want: "default",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.initFunc()
-			if got := getEnvString(tt.args.key, tt.args.argumentValue); got != tt.want {
+			if got := getEnvString(tt.args.key, tt.args.flagValue, tt.args.fileConfValue, tt.args.defaultValue); got != tt.want {
 				t.Errorf("getEnvString() = %v, want %v", got, tt.want)
 			}
 		})
