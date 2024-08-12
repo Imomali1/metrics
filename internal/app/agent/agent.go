@@ -39,10 +39,12 @@ func Run(cfg Config) {
 	}
 
 	var err error
-	app.publicKey, err = cipher.UploadRSAPublicKey(cfg.PublicKeyPath)
-	if err != nil {
-		log.Err(err).Send()
-		return
+	if cfg.PublicKeyPath != "" {
+		app.publicKey, err = cipher.UploadRSAPublicKey(cfg.PublicKeyPath)
+		if err != nil {
+			log.Err(err).Send()
+			return
+		}
 	}
 
 	if err = checkServer(cfg.ServerAddress); err != nil {
