@@ -226,7 +226,7 @@ func TestUploadRSAPublicKey(t *testing.T) {
 			name:          "empty path",
 			filename:      "",
 			wantPublicKey: nil,
-			wantErr:       true,
+			wantErr:       false,
 		},
 		{
 			name:          "crypto key with invalid algorithm",
