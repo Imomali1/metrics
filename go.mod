@@ -1,6 +1,6 @@
 module github.com/Imomali1/metrics
 
-go 1.23
+go 1.22.7
 
 require (
 	github.com/gin-gonic/gin v1.10.0
