@@ -10,6 +10,10 @@ import (
 )
 
 func UploadRSAPublicKey(filename string) (publicKey *rsa.PublicKey, err error) {
+	if filename == "" {
+		return nil, nil
+	}
+
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		return publicKey, err
