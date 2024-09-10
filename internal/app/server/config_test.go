@@ -3,7 +3,6 @@ package server
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -113,7 +112,7 @@ func Test_getEnvBool(t *testing.T) {
 			initFunc: func() { os.Unsetenv("ENV_KEY") },
 			args: args{
 				key:          "ENV_KEY",
-				flagValue:    true,
+				flagValue:    false,
 				fileValue:    nil,
 				defaultValue: true,
 			},
@@ -187,7 +186,7 @@ func Test_getEnvInt(t *testing.T) {
 			initFunc: func() { os.Unsetenv("ENV_KEY") },
 			args: args{
 				key:          "ENV_KEY",
-				flagValue:    4,
+				flagValue:    0,
 				fileValue:    utils.Ptr(3),
 				defaultValue: 4,
 			},
@@ -198,7 +197,7 @@ func Test_getEnvInt(t *testing.T) {
 			initFunc: func() { os.Unsetenv("ENV_KEY") },
 			args: args{
 				key:          "ENV_KEY",
-				flagValue:    4,
+				flagValue:    0,
 				fileValue:    nil,
 				defaultValue: 4,
 			},
@@ -272,7 +271,7 @@ func Test_getEnvString(t *testing.T) {
 			initFunc: func() { os.Unsetenv("ENV_KEY") },
 			args: args{
 				key:          "ENV_KEY",
-				flagValue:    "default",
+				flagValue:    "",
 				fileValue:    utils.Ptr("file"),
 				defaultValue: "default",
 			},
@@ -283,7 +282,7 @@ func Test_getEnvString(t *testing.T) {
 			initFunc: func() { os.Unsetenv("ENV_KEY") },
 			args: args{
 				key:          "ENV_KEY",
-				flagValue:    "default",
+				flagValue:    "",
 				fileValue:    nil,
 				defaultValue: "default",
 			},
@@ -300,91 +299,6 @@ func Test_getEnvString(t *testing.T) {
 				tt.args.defaultValue,
 			); got != tt.want {
 				t.Errorf("getEnvString() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_getEnvDuration(t *testing.T) {
-	type args struct {
-		key          string
-		flagValue    time.Duration
-		fileValue    *time.Duration
-		defaultValue time.Duration
-	}
-
-	tests := []struct {
-		name     string
-		initFunc func()
-		args     args
-		want     time.Duration
-	}{
-		{
-			name:     "with normal os env",
-			initFunc: func() { os.Setenv("ENV_KEY", "1s") },
-			args: args{
-				key:          "ENV_KEY",
-				flagValue:    2 * time.Second,
-				fileValue:    utils.Ptr(3 * time.Second),
-				defaultValue: 4 * time.Second,
-			},
-			want: time.Second,
-		},
-		{
-			name:     "with empty os env",
-			initFunc: func() { os.Setenv("ENV_KEY", "") },
-			args: args{
-				key:          "ENV_KEY",
-				flagValue:    2 * time.Second,
-				fileValue:    utils.Ptr(3 * time.Second),
-				defaultValue: 4 * time.Second,
-			},
-			want: 2 * time.Second,
-		},
-		{
-			name:     "from flag",
-			initFunc: func() { os.Unsetenv("ENV_KEY") },
-			args: args{
-				key:          "ENV_KEY",
-				flagValue:    2 * time.Second,
-				fileValue:    utils.Ptr(3 * time.Second),
-				defaultValue: 4 * time.Second,
-			},
-			want: 2 * time.Second,
-		},
-		{
-			name:     "from file",
-			initFunc: func() { os.Unsetenv("ENV_KEY") },
-			args: args{
-				key:          "ENV_KEY",
-				flagValue:    4 * time.Second,
-				fileValue:    utils.Ptr(3 * time.Second),
-				defaultValue: 4 * time.Second,
-			},
-			want: 3 * time.Second,
-		},
-		{
-			name:     "default value",
-			initFunc: func() { os.Unsetenv("ENV_KEY") },
-			args: args{
-				key:          "ENV_KEY",
-				flagValue:    4 * time.Second,
-				fileValue:    nil,
-				defaultValue: 4 * time.Second,
-			},
-			want: 4 * time.Second,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.initFunc()
-			if got := getEnvDuration(
-				tt.args.key,
-				tt.args.flagValue,
-				tt.args.fileValue,
-				tt.args.defaultValue,
-			); got != tt.want {
-				t.Errorf("getEnvDuration() = %v, want %v", got, tt.want)
 			}
 		})
 	}

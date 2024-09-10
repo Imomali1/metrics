@@ -85,9 +85,16 @@ func Run(cfg Config, log logger.Logger) {
 	var wg sync.WaitGroup
 	if cfg.FileStoragePath != "" && cfg.StoreInterval != 0 {
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
-			if err = tasks.WriteMetricsToFile(ctx, store, cfg.FileStoragePath, cfg.StoreInterval); err != nil {
+
+			err = tasks.WriteMetricsToFile(ctx,
+				store,
+				cfg.FileStoragePath,
+				time.Duration(cfg.StoreInterval)*time.Second,
+			)
+			if err != nil {
 				log.Error().Err(err).Msg("error in writing metrics to file")
 			}
 		}()

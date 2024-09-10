@@ -4,6 +4,8 @@ import (
 	"flag"
 	"os"
 	"strconv"
+
+	"github.com/Imomali1/metrics/internal/pkg/utils"
 )
 
 type Config struct {
@@ -27,9 +29,9 @@ const (
 )
 
 func LoadConfig() (cfg Config) {
-	serverAddress := flag.String("a", defaultServerAddress, "отвечает за адрес эндпоинта HTTP-сервера")
-	pollInterval := flag.Int("p", defaultPollInterval, "частота опроса метрик из пакета runtime")
-	reportInterval := flag.Int("r", defaultReportInterval, "частота отправки метрик на сервер")
+	serverAddress := flag.String("a", "", "отвечает за адрес эндпоинта HTTP-сервера")
+	pollInterval := flag.Int("p", 0, "частота опроса метрик из пакета runtime")
+	reportInterval := flag.Int("r", 0, "частота отправки метрик на сервер")
 	hashKey := flag.String("k", "", "Ключ для подписи данных")
 	rateLimit := flag.Int("l", 1, "количество одновременно исходящих запросов на сервер")
 	publicKeyPath := flag.String("crypto-key", "", "путь до файла с публичным ключом")
@@ -38,10 +40,14 @@ func LoadConfig() (cfg Config) {
 
 	flag.Parse()
 
-	configFilePath := *longConfigFilePath
+	var configFilePath string
 
 	if *shortConfigFilePath != "" {
 		configFilePath = *shortConfigFilePath
+	}
+
+	if *longConfigFilePath != "" {
+		configFilePath = *longConfigFilePath
 	}
 
 	path, found := os.LookupEnv("CONFIG")
@@ -61,17 +67,27 @@ func LoadConfig() (cfg Config) {
 		defaultServerAddress,
 	)
 
+	var filePollInterval *int
+	if fileConf.PollInterval != nil {
+		filePollInterval = utils.Ptr(int(fileConf.PollInterval.Seconds()))
+	}
+
 	cfg.PollInterval = getEnvInt(
 		"POLL_INTERVAL",
 		*pollInterval,
-		fileConf.PollInterval,
+		filePollInterval,
 		defaultPollInterval,
 	)
+
+	var fileReportInterval *int
+	if fileConf.ReportInterval != nil {
+		fileReportInterval = utils.Ptr(int(fileConf.ReportInterval.Seconds()))
+	}
 
 	cfg.ReportInterval = getEnvInt(
 		"REPORT_INTERVAL",
 		*reportInterval,
-		fileConf.ReportInterval,
+		fileReportInterval,
 		defaultReportInterval,
 	)
 
@@ -113,7 +129,7 @@ func getEnvString(
 		return envValue
 	}
 
-	if flagValue != defaultValue {
+	if flagValue != "" {
 		return flagValue
 	}
 
@@ -130,15 +146,12 @@ func getEnvInt(
 	fileConfValue *int,
 	defaultValue int,
 ) int {
-	envValueStr, exists := os.LookupEnv(envKey)
-	if exists {
-		envValue, err := strconv.Atoi(envValueStr)
-		if err == nil {
-			return envValue
-		}
+	envValue, err := strconv.Atoi(os.Getenv(envKey))
+	if err == nil {
+		return envValue
 	}
 
-	if flagValue != defaultValue {
+	if flagValue != 0 {
 		return flagValue
 	}
 
