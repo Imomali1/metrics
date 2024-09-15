@@ -5,24 +5,26 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"sync"
-
-	"github.com/go-resty/resty/v2"
-
-	"crypto/rsa"
-
-	"github.com/rs/zerolog/log"
+	"syscall"
+	"time"
 
 	"github.com/Imomali1/metrics/internal/entity"
 	"github.com/Imomali1/metrics/internal/pkg/cipher"
 	"github.com/Imomali1/metrics/internal/pkg/logger"
 	"github.com/Imomali1/metrics/internal/pkg/utils"
+	"github.com/go-resty/resty/v2"
 )
 
 type agent struct {
-	cfg       Config
-	log       logger.Logger
-	publicKey *rsa.PublicKey
+	cfg        Config
+	log        logger.Logger
+	metrics    *Metrics
+	poller     poller
+	reporter   reporter
+	jobsChan   chan Job
+	shutdownCh chan struct{}
 }
 
 type Metrics struct {
@@ -31,44 +33,51 @@ type Metrics struct {
 	Arr       []entity.Metrics
 }
 
-func Run(cfg Config) {
-	app := agent{
-		cfg: cfg,
-		log: logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName),
-	}
-
-	var err error
-	app.publicKey, err = cipher.UploadRSAPublicKey(cfg.PublicKeyPath)
+func Run(cfg Config, log logger.Logger) error {
+	publicKey, err := cipher.UploadRSAPublicKey(cfg.PublicKeyPath)
 	if err != nil {
-		log.Err(err).Send()
-		return
+		return fmt.Errorf("failed to upload public key: %w", err)
 	}
 
-	if err := checkServer(cfg.ServerAddress); err != nil {
-		log.Err(err).Send()
-		return
+	app := agent{
+		cfg:     cfg,
+		log:     log,
+		metrics: &Metrics{},
+		poller: poller{
+			interval: time.Duration(cfg.PollInterval) * time.Second,
+		},
+		reporter: reporter{
+			interval:  time.Duration(cfg.ReportInterval) * time.Second,
+			publicKey: publicKey,
+		},
+		jobsChan:   make(chan Job),
+		shutdownCh: make(chan struct{}),
+	}
+
+	if err = checkServer(cfg.ServerAddress); err != nil {
+		return fmt.Errorf("failed to check server: %w", err)
 	}
 
 	log.Info().Msg("agent is up and running...")
 
-	tasks := make(chan ReportTask)
-
 	for i := 0; i < cfg.RateLimit; i++ {
-		go app.worker(tasks)
+		go app.worker()
 	}
 
-	metrics := new(Metrics)
-
 	var wg sync.WaitGroup
-	wg.Add(5)
-	go app.pollRuntimeMetrics(metrics, &wg)
-	go app.pollGopsutilMetrics(metrics, &wg)
-	go app.reportMetricsV1(metrics, tasks, &wg)
-	go app.reportMetricsV2(metrics, tasks, &wg)
-	go app.reportMetricsV3(metrics, tasks, &wg)
-	wg.Wait()
 
-	close(tasks)
+	go app.PollMetricsPeriodically(&wg)
+	go app.ReportMetricsPeriodically(&wg)
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM|syscall.SIGINT|syscall.SIGQUIT)
+
+	<-quit
+	close(app.shutdownCh)
+	wg.Wait()
+	close(app.jobsChan)
+
+	return nil
 }
 
 func checkServer(address string) error {

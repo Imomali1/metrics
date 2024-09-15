@@ -28,5 +28,7 @@ func main() {
 
 	log := logger.NewLogger(os.Stdout, cfg.LogLevel, cfg.ServiceName)
 
-	app.Run(cfg, log)
+	if err := app.Run(cfg, log); err != nil {
+		log.Fatal().Err(err).Send()
+	}
 }

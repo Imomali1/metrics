@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,16 +30,16 @@ const (
 	_htmlTemplatePath = "static/templates/*.html"
 )
 
-func Run(cfg Config, log logger.Logger) {
+func Run(cfg Config, log logger.Logger) error {
 	store, err := storage.New(context.Background(), cfg.DatabaseDSN)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize storage")
+		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
 
 	if cfg.Restore {
 		err = file.RestoreMetrics(context.Background(), cfg.FileStoragePath, store)
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to restore metrics")
+			return fmt.Errorf("failed to restore metrics: %w", err)
 		}
 	}
 
@@ -46,7 +47,7 @@ func Run(cfg Config, log logger.Logger) {
 	if cfg.StoreInterval == 0 {
 		syncFileWriter, err = file.NewSyncMetricsWriter(cfg.FileStoragePath)
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to initialize sync file writer")
+			return fmt.Errorf("failed to initialize sync file writer: %w", err)
 		}
 	}
 
@@ -54,7 +55,7 @@ func Run(cfg Config, log logger.Logger) {
 	if cfg.PrivateKeyPath != "" {
 		privateKey, err = cipher.UploadRSAPrivateKey(cfg.PrivateKeyPath)
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to upload rsa private key")
+			return fmt.Errorf("failed to upload rsa private key: %w", err)
 		}
 	}
 
@@ -75,6 +76,7 @@ func Run(cfg Config, log logger.Logger) {
 		Addr:    cfg.ServerAddress,
 		Handler: handler,
 	}
+
 	go func() {
 		err = server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -111,8 +113,10 @@ func Run(cfg Config, log logger.Logger) {
 	defer cancel()
 
 	if err = server.Shutdown(ctxShutdown); err != nil {
-		log.Fatal().Err(err).Msg("error in shutting down server")
+		return fmt.Errorf("error in shutting down server: %w", err)
 	}
 
 	log.Info().Msg("server stopped successfully")
+
+	return nil
 }
