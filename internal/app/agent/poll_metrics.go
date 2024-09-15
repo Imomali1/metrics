@@ -30,10 +30,10 @@ func (a *agent) PollMetricsPeriodically(wg *sync.WaitGroup) {
 			go a.pollGopsutilMetrics(wg)
 		case <-a.shutdownCh:
 			a.log.Info().Msg("stopped collecting metrics")
-			ticker.Stop()
 			go a.reportMetricsV1(wg)
 			go a.reportMetricsV2(wg)
 			go a.reportMetricsV3(wg)
+			return
 		}
 	}
 }
